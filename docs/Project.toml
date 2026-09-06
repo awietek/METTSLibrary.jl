@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+METTSLibrary = "4133a110-b6fc-4e1c-a243-06f647d50c2b"
+
+[compat]
+Documenter = "1"
