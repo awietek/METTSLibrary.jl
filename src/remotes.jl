@@ -108,7 +108,7 @@ function _download(url::AbstractString, dest::AbstractString, token)
     end
 end
 
-const _ACCESS_HINT = " The repository is private or restricted: set HF_TOKEN (or run `huggingface-cli login`) " *
+const _ACCESS_HINT = ". The repository is private or restricted: set HF_TOKEN (or run `huggingface-cli login`) " *
                      "with a token that has read access, or set METTSLIBRARY_PATH to a local copy."
 
 function _explain(err, url)
