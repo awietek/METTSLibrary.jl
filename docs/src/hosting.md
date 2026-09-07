@@ -8,7 +8,7 @@ up and why, so that it can be moved when the time comes.
 | copy | role |
 |---|---|
 | Hugging Face dataset `awietek/mettslibrary`, private | the Git server and off-site safe. Receives pushes; nothing reads from it day to day. |
-| clone on the institute cluster | the primary. Samples are produced and ingested here; the group reads from it through `METTSLIBRARY_PATH`. |
+| clone on the institute cluster, `/data/condmat/awietek/Data/mettslibrary` | the primary. Samples are produced and ingested here; the group reads from it through `METTSLIBRARY_PATH`. |
 | clone on the laptop | convenience for analysis and travel. |
 
 All three are full Git clones with Git LFS, so each holds every file and the
@@ -27,7 +27,21 @@ Pushing needs a Hugging Face token with write access, used as the password
 with your username, or an SSH key registered with Hugging Face. On the
 cluster keep the token in a file readable only by you. Make the clone
 directory group-readable but not group-writable, so nobody edits the tree
-by hand.
+by hand:
+
+```bash
+chmod -R g+rX,o-rwx /data/condmat/awietek/Data/mettslibrary
+```
+
+Group members then add to their `~/.bashrc`
+
+```bash
+export METTSLIBRARY_PATH=/data/condmat/awietek/Data/mettslibrary
+```
+
+and need nothing else. After each ingest and push, other clones pick up the
+new ensembles with `git pull`; the cluster clone itself is where ingests
+happen, so it is always current.
 
 ## Rules that keep it healthy
 

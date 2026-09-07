@@ -20,14 +20,27 @@ The package looks for files in this order and stops at the first hit:
 3. **Remotes.** By default the Hugging Face dataset repository. Others can be
    added, see [Sharing](@ref).
 
-On the cluster, or anywhere the library is mounted, one line in your shell
-profile is all the configuration there is:
+On the institute cluster the group's copy lives at
+`/data/condmat/awietek/Data/mettslibrary`. Add one line to your `~/.bashrc`
+(or `~/.zshrc`, whichever shell you use) and open a new shell:
 
 ```bash
-export METTSLIBRARY_PATH=/path/to/mettslibrary
+export METTSLIBRARY_PATH=/data/condmat/awietek/Data/mettslibrary
 ```
 
-On your own laptop you can point it at your clone in the same way.
+That is all the configuration there is on the cluster: no account, no
+token, no network. Check that Julia sees it with
+
+```julia
+ENV["METTSLIBRARY_PATH"]
+```
+
+Jobs submitted through the batch system inherit the variable from your login
+environment if `.bashrc` is sourced; if not, put the same `export` line into
+the job script.
+
+On your own laptop point it at your clone in the same way, e.g.
+`export METTSLIBRARY_PATH=$HOME/Research/Data/mettslibrary`.
 
 ## Access to the private repository
 

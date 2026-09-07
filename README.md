@@ -31,8 +31,9 @@ names = state_labels(e, 1)
 
 Where files come from, in order:
 
-1. `METTSLIBRARY_PATH`: a local copy of the library, e.g. the clone on your
-   cluster. No network is used if the file is there.
+1. `METTSLIBRARY_PATH`: a local copy of the library. On the institute
+   cluster put `export METTSLIBRARY_PATH=/data/condmat/awietek/Data/mettslibrary`
+   into your `~/.bashrc`. No network is used if the file is there.
 2. `METTSLIBRARY_CACHE` (default `~/.cache/mettslibrary`): previously
    downloaded files.
 3. Remotes: the Hugging Face dataset repository by default. While it is
