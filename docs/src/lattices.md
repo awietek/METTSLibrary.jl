@@ -81,8 +81,8 @@ directories, and every ensemble below it refers to it:
 
 ```
 tJ/square.L32.W4.cyl/square.L32.W4.cyl.toml
-tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.3_ndn56_nup56/beta_4.0_seed1.h5
-tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.2_ndn56_nup56/beta_4.0_seed1.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed1.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.2/ndn=56_nup=56/beta_4.0/seed1.h5
 ```
 
 An ensemble's HDF5 file records the lattice name and the file's SHA-256; the

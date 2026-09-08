@@ -99,15 +99,26 @@ the two older formats are converted to this form on ingest.
 
 ```
 <model>/<lattice_name>/<lattice_name>.toml
-<model>/<lattice_name>/<parameters and sector>/beta_<beta>_<tag>.h5
+<model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5
 
 tJ/square.L32.W4.cyl/square.L32.W4.cyl.toml
-tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.3_ndn56_nup56/beta_4.0_chain01.h5
-tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.3_ndn56_nup56/beta_8.0_chain01.h5
-tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.2_ndn56_nup56/beta_4.0_chain01.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed1.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed2.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_8.0/seed1.h5
+tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.2/ndn=56_nup=56/beta_4.0/seed1.h5
 Heisenberg/shastry.16.HB.J.Jd.fsl/shastry.16.HB.J.Jd.fsl.toml
-Heisenberg/shastry.16.HB.J.Jd.fsl/J21.0_J2p1.0_J31.0_J3p1.0_Jd1.0/beta_1.0_seed1.h5
+Heisenberg/shastry.16.HB.J.Jd.fsl/J2=1.0_J2p=1.0_J3=1.0_J3p=1.0_Jd=1.0/default/beta_1.0/seed1.h5
 ```
+
+One file is one METTS run, so `<tag>` is normally the seed: the runs of a
+parameter set at one temperature sit side by side in the `beta_<beta>`
+directory. A sector with no conserved quantum numbers gives `default`.
+All datasets are stored chunked and deflated.
+
+Couplings and quantum numbers are written `name=value`. The `=` is not
+decoration: keys may contain `_` and values may be negative, so `t_prime=-0.3`
+is readable where `t_prime-0.3` is not. These names are for humans — the
+authoritative values are the `parameters` and `sector` attributes in the file.
 
 `index.toml` at the library root lists every ensemble with its path, SHA-256,
 size, metadata, and the root-relative path and hash of its lattice file. It

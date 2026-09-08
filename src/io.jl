@@ -8,7 +8,8 @@
 # /                          attributes: schema, schema_version, model, site_type,
 #                            local_states, nsites, nsamples, beta, collapse_bases,
 #                            lattice_name, lattice_sha256
-# ../<lattice_name>.toml     the lattice file, one directory up, shared
+# <lattice_name>.toml        the lattice file, in the <lattice_name> directory
+#                            above this one, shared by every ensemble below it
 # /coordinates               Float64 (dim, nsites), copy of the lattice's Coordinates
 # /states                    UInt8   (nsites, nsamples)   0-based into local_states
 # /basis                     UInt8   (nsamples,)          0-based into collapse_bases
@@ -21,6 +22,28 @@
 # ---------------------------------------------------------------------------
 
 const _ATTR_SCALAR = Union{Integer,AbstractFloat,AbstractString,Bool}
+
+# Below this many elements the chunk and filter overhead outweighs the saving.
+const _COMPRESS_MIN = 1024
+const _DEFLATE = 3
+
+# Chunk the sample dimension (the last one) and keep the others whole: reads
+# are always "all sites / all components of some samples".
+_chunk_dims(sz::Tuple{}) = ()
+_chunk_dims(sz::NTuple{D,Int}) where {D} = (sz[1:end-1]..., max(1, min(sz[end], 4096)))
+
+# Every array dataset goes through here, so states, basis, step, coordinates
+# and the observables are all stored deflated.
+function _write_array!(parent, name::AbstractString, a::AbstractArray)
+    if length(a) < _COMPRESS_MIN || any(==(0), size(a))
+        parent[name] = a
+        return nothing
+    end
+    ds = create_dataset(parent, name, datatype(eltype(a)), dataspace(a);
+                        chunk=_chunk_dims(size(a)), deflate=_DEFLATE)
+    write(ds, a)
+    return nothing
+end
 
 _attr_value(v::_ATTR_SCALAR) = v
 _attr_value(v::AbstractVector{<:AbstractString}) = String.(v)
@@ -51,7 +74,7 @@ sha256_string(s::AbstractString) = bytes2hex(sha256(codeunits(s)))
     write_ensemble(root, e::Ensemble; tag) -> relpath
 
 Write `e` into the library at `root`, at
-`<model>/<lattice_name>/<parameters>/beta_<beta>_<tag>.h5`, and return that
+`<model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5`, and return that
 relative path. The lattice is written to `<model>/<lattice_name>/<lattice_name>.toml`
 if it is not there yet; if it is, it must be identical, since other
 ensembles share it. Files are append-only: an existing file at the target
@@ -89,12 +112,10 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
         a["lattice_name"]   = e.lattice_name
         a["lattice_sha256"] = lhash
 
-        f["coordinates"] = parse_lattice(e.lattice).coordinates
-        ds = create_dataset(f, "states", datatype(UInt8), dataspace(e.states);
-                            chunk=(N, max(1, min(M, 4096))), deflate=3)
-        write(ds, e.states)
-        f["basis"] = e.basis
-        f["step"]  = e.step
+        _write_array!(f, "coordinates", parse_lattice(e.lattice).coordinates)
+        _write_array!(f, "states", e.states)
+        _write_array!(f, "basis",  e.basis)
+        _write_array!(f, "step",   e.step)
 
         _write_attr_group!(f, "parameters", e.parameters)
         _write_attr_group!(f, "sector",     e.sector)
@@ -103,7 +124,7 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
 
         obs = create_group(f, "observables")
         for (k, v) in e.observables
-            obs[k] = v
+            _write_array!(obs, k, v)
         end
     end
     return rel

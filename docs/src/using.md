@@ -20,7 +20,7 @@ the lattice file itself.
 The result is a vector of dictionaries. Two entries worth knowing:
 
 - `entry["path"]` is the location in the library, e.g.
-  `tJ/square.L32.W4.cyl/J0.4_t3.0_t_prime-0.3_ndn56_nup56/beta_4.0_chain01.h5`
+  `tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed1.h5`
 - `entry["collapse_bases"]` tells you which bases the samples were collapsed
   in, which matters below.
 

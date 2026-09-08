@@ -154,7 +154,8 @@ end
 @testset "paths" begin
     e = synthetic_tj()
     rel = ML.relpath_for(e; tag="chain01")
-    @test rel == joinpath("tJ", "square.L4.W2.cyl", "J0.4_t3.0_t_prime-0.3_ndn2_nup3", "beta_2.0_chain01.h5")
+    @test rel == joinpath("tJ", "square.L4.W2.cyl", "J=0.4_t=3.0_t_prime=-0.3", "ndn=2_nup=3",
+                          "beta_2.0", "chain01.h5")
     @test_throws ArgumentError ML.relpath_for(e; tag="")
     @test_throws ArgumentError ML.relpath_for(e; tag="a/b")
     @test ML.unflatten_path(ML.flatten_path(rel)) == rel
