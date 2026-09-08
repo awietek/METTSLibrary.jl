@@ -1,7 +1,7 @@
 # Layout of the library tree:
 #
 #   <model>/<lattice_name>/<lattice_name>.toml
-#   <model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5
+#   <model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5
 #
 # One file is one METTS run, so <tag> is normally the seed, e.g. `seed3.h5`.
 
@@ -14,14 +14,14 @@ _kv_dir(d) = join(["$k=$(_fmt(v))" for (k, v) in sort(collect(d))], "_")
 
 _parameter_dir(e::Ensemble) = (s = _kv_dir(e.parameters); isempty(s) ? "default" : s)
 _sector_dir(e::Ensemble)    = (s = _kv_dir(e.sector);     isempty(s) ? "default" : s)
-_beta_dir(e::Ensemble)      = "beta_$(_fmt(e.beta))"
+_beta_dir(e::Ensemble)      = "beta=$(_fmt(e.beta))"
 
 """
     relpath_for(e::Ensemble; tag) -> String
 
 Location of an ensemble inside the library, relative to its root:
-`<model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5`, e.g.
-`tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed3.h5`.
+`<model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5`, e.g.
+`tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed3.h5`.
 `tag` names the run and is normally its seed, e.g. `tag = "seed3"`.
 """
 function relpath_for(e::Ensemble; tag::AbstractString)

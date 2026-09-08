@@ -74,7 +74,7 @@ sha256_string(s::AbstractString) = bytes2hex(sha256(codeunits(s)))
     write_ensemble(root, e::Ensemble; tag) -> relpath
 
 Write `e` into the library at `root`, at
-`<model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5`, and return that
+`<model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5`, and return that
 relative path. The lattice is written to `<model>/<lattice_name>/<lattice_name>.toml`
 if it is not there yet; if it is, it must be identical, since other
 ensembles share it. Files are append-only: an existing file at the target

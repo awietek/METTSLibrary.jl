@@ -53,7 +53,7 @@ e = Ensemble(model = "tJ", site_type = "tJ",
              observables = Dict("energy" => energies))
 
 root = "/path/to/mettslibrary"
-write_ensemble(root, e; tag = "seed1")     # -> tJ/square.L32.W4.cyl/.../beta_4.0/seed1.h5
+write_ensemble(root, e; tag = "seed1")     # -> tJ/square.L32.W4.cyl/.../beta=4.0/seed1.h5
 build_index(root)
 ```
 
@@ -61,7 +61,7 @@ Then commit and push the new file and `index.toml`. Files are append-only:
 never modify a written ensemble, add a new file with a new tag. One file is
 one METTS run, so the tag is normally the seed and the runs of a parameter set
 at one temperature sit side by side:
-`<model>/<lattice_name>/<parameters>/<sector>/beta_<beta>/<tag>.h5`.
+`<model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5`.
 
 A lattice file is mandatory. It is the TOML model file with `Coordinates`
 and `Interactions` (the format XDiag reads); older `.lat` files are converted
@@ -91,7 +91,7 @@ e = from_ttj_run(".../L.32.W.4/J.0.4000/t.3/t_prime.-0.3000/filling.0.87500/T.0.
 ## Sharing a subset through Zenodo
 
 ```julia
-publish_zenodo(["tJ/square.L32.W4.cyl/.../beta_4.0/seed1.h5"], root;
+publish_zenodo(["tJ/square.L32.W4.cyl/.../beta=4.0/seed1.h5"], root;
                title = "...", description = "...",
                creators = [Dict("name" => "Wietek, Alexander")],
                access = "restricted", sandbox = true)

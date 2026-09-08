@@ -83,7 +83,7 @@ matrix. Standard names are `energy`, `energy2`, `entropy`, `maxdim`, `n`,
 ```julia
 root = ENV["METTSLIBRARY_PATH"]                     # the clone
 rel  = write_ensemble(root, e; tag = "seed$(seed)")
-# "tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta_4.0/seed1.h5"
+# "tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed1.h5"
 build_index(root)
 ```
 
