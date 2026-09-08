@@ -29,7 +29,7 @@ const LEGACY_CPP_OBSERVABLES = Dict(
 """
     from_legacy_cpp(dump_h5; lattice, model, site_type, beta=nothing, temperature=nothing,
                     basis="Z", parameters=Dict(), sector=Dict(), algorithm=Dict(),
-                    chain=1, lattice_name=nothing) -> Ensemble
+                    lattice_name=nothing) -> Ensemble
 
 Convert a `*.dump.h5` file of the legacy C++ METTS code. The file holds no
 metadata, so everything must be supplied: the lattice file used for the run
@@ -43,7 +43,7 @@ function from_legacy_cpp(dump_h5::AbstractString;
                          lattice::AbstractString, model::AbstractString, site_type::AbstractString,
                          beta=nothing, temperature=nothing, basis::AbstractString="Z",
                          parameters=Dict{String,Float64}(), sector=Dict{String,Int}(),
-                         algorithm=Dict{String,Any}(), chain::Integer=1, lattice_name=nothing)
+                         algorithm=Dict{String,Any}(), lattice_name=nothing)
     local_states = LOCAL_STATES[site_type]
     # legacy value -> 0-based library index, or -1 if the label does not exist for this site type
     lut = [(i = findfirst(==(l), local_states); i === nothing ? -1 : i - 1) for l in LEGACY_CPP_LABELS]
@@ -72,5 +72,5 @@ function from_legacy_cpp(dump_h5::AbstractString;
     return _converted(states, 1:size(states, 2);
         source=dump_h5, source_format="legacy_cpp_dump_h5", code="metts (C++)",
         lattice, lattice_name, model, site_type, beta, temperature, basis,
-        parameters, sector, algorithm, chain, observables=obs)
+        parameters, sector, algorithm, observables=obs)
 end

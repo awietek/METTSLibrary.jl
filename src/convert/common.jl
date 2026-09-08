@@ -17,7 +17,7 @@ _now() = Dates.format(now(UTC), dateformat"yyyy-mm-ddTHH:MM:SS\Z")
 function _converted(states::Matrix{UInt8}, steps::AbstractVector{<:Integer};
                     source::AbstractString, source_format::String, code::String,
                     lattice::AbstractString, lattice_name, model, site_type,
-                    beta, temperature, basis, parameters, sector, algorithm, chain, observables)
+                    beta, temperature, basis, parameters, sector, algorithm, observables)
     (beta === nothing) == (temperature === nothing) &&
         throw(ArgumentError("give exactly one of beta or temperature"))
     M = length(steps)
@@ -33,7 +33,7 @@ function _converted(states::Matrix{UInt8}, steps::AbstractVector{<:Integer};
         algorithm=merge(Dict{String,Any}("code" => code), Dict{String,Any}(algorithm)),
         provenance=prov,
         collapse_bases=[uppercase(String(basis))],
-        states=states, basis=zeros(UInt8, M), chain=fill(Int32(chain), M), step=Int32.(steps),
+        states=states, basis=zeros(UInt8, M), step=Int32.(steps),
         observables=Dict{String,Array{Float64}}(String(k) => v for (k, v) in observables),
     ))
 end

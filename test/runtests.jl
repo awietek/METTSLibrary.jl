@@ -188,6 +188,9 @@ end
         @test r.provenance["creator"] == "runtests"
         h5open(path, "r") do f
             @test read(f["coordinates"])[:, 2] == [0.0, 1.0]
+            # schema 2 dropped /chain: one file is one run, seed lives in /algorithm
+            @test !haskey(f, "chain")
+            @test read_attribute(f, "schema_version") == 2
         end
 
         m = ML.read_metadata(path)
@@ -365,7 +368,6 @@ end
         e = from_ttj_run(dir)
         @test nsites(e) == 6 && nsamples(e) == 3
         @test e.step == Int32[1, 2, 4]
-        @test e.chain == Int32[7, 7, 7]
         @test e.states[:, 1] == UInt8[0, 1, 2, 1, 2, 1]
         @test e.collapse_bases == ["X"]
         @test e.beta ≈ 5.0

@@ -1,5 +1,9 @@
 # ---------------------------------------------------------------------------
-# HDF5 layout (schema version 1); see docs/src/schema.md
+# HDF5 layout (schema version 2); see docs/src/schema.md
+#
+# Version 2 dropped /chain: one file is one METTS run, so it was a constant
+# column duplicating algorithm/seed. Files written by version 1 still read —
+# their /chain dataset is simply ignored.
 #
 # /                          attributes: schema, schema_version, model, site_type,
 #                            local_states, nsites, nsamples, beta, collapse_bases,
@@ -8,7 +12,6 @@
 # /coordinates               Float64 (dim, nsites), copy of the lattice's Coordinates
 # /states                    UInt8   (nsites, nsamples)   0-based into local_states
 # /basis                     UInt8   (nsamples,)          0-based into collapse_bases
-# /chain                     Int32   (nsamples,)
 # /step                      Int32   (nsamples,)
 # /parameters                group, one scalar attribute per coupling
 # /sector                    group, one integer attribute per quantum number
@@ -91,7 +94,6 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
                             chunk=(N, max(1, min(M, 4096))), deflate=3)
         write(ds, e.states)
         f["basis"] = e.basis
-        f["chain"] = e.chain
         f["step"]  = e.step
 
         _write_attr_group!(f, "parameters", e.parameters)
@@ -157,7 +159,7 @@ function read_ensemble(path::AbstractString)
             parameters=h["parameters"], sector=h["sector"], algorithm=h["algorithm"], provenance=h["provenance"],
             collapse_bases=Vector{String}(h["collapse_bases"]),
             states=Matrix{UInt8}(read(f["states"])), basis=Vector{UInt8}(read(f["basis"])),
-            chain=Vector{Int32}(read(f["chain"])), step=Vector{Int32}(read(f["step"])),
+            step=Vector{Int32}(read(f["step"])),
             observables=obs))
     end
 end

@@ -11,7 +11,7 @@
 """
     from_samples_txt(path; lattice, model, site_type="tJ", beta=nothing, temperature=nothing,
                      basis="X", parameters=Dict(), sector=Dict(), algorithm=Dict(),
-                     chain=1, lattice_name=nothing, observables=Dict()) -> Ensemble
+                     lattice_name=nothing, observables=Dict()) -> Ensemble
 
 Convert a METTS.jl `samples.txt`. Integers in the file are 1-based ITensors
 indices for `site_type` and are stored 0-based. The measurement index becomes
@@ -23,7 +23,7 @@ function from_samples_txt(path::AbstractString;
                           lattice::AbstractString, model::AbstractString, site_type::AbstractString="tJ",
                           beta=nothing, temperature=nothing, basis::AbstractString="X",
                           parameters=Dict{String,Float64}(), sector=Dict{String,Int}(),
-                          algorithm=Dict{String,Any}(), chain::Integer=1, lattice_name=nothing,
+                          algorithm=Dict{String,Any}(), lattice_name=nothing,
                           observables=Dict{String,Array{Float64}}())
     nlabels = length(LOCAL_STATES[site_type])
     samples = Dict{Int,Vector{Int}}()
@@ -46,7 +46,7 @@ function from_samples_txt(path::AbstractString;
     return _converted(states, steps;
         source=path, source_format="metts_jl_samples_txt", code="METTS.jl",
         lattice, lattice_name, model, site_type, beta, temperature, basis,
-        parameters, sector, algorithm, chain, observables)
+        parameters, sector, algorithm, observables)
 end
 
 const _TTJ_PATH_RE = r"L\.(\d+)\.W\.(\d+)/J\.([0-9.]+)/t\.([0-9.]+)/t_prime\.(-?[0-9.]+)/filling\.([0-9.]+)/T\.([0-9.]+)/D\.(\d+)/tau\.([0-9.]+)\.cutoff\.([0-9.eE+-]+)\.seed\.(\d+)"
@@ -67,7 +67,7 @@ function parse_ttj_path(path::AbstractString)
 end
 
 """
-    from_ttj_run(dir; lattice=nothing, lattice_name=nothing, basis="X", chain=nothing) -> Ensemble
+    from_ttj_run(dir; lattice=nothing, lattice_name=nothing, basis="X") -> Ensemble
 
 Convert one output directory of `examples/ttJ_metts.jl` (containing
 `samples.txt`) to an Ensemble, taking all parameters from the path. The
@@ -75,10 +75,10 @@ driver builds the t-t'-J Hamiltonian in code on `square_lattice(L, W;
 yperiodic=true)`, so unless a `lattice` is given one is generated with
 `square_lattice_toml` using couplings `t` (HOP, nearest neighbours), `J`
 (HB, nearest neighbours) and `t_prime` (HOP, diagonals), named
-`square.L<L>.W<W>.cyl`. The chain id defaults to the seed.
+`square.L<L>.W<W>.cyl`. The run's seed is recorded in `algorithm`.
 """
 function from_ttj_run(dir::AbstractString; lattice=nothing, lattice_name=nothing,
-                      basis::AbstractString="X", chain=nothing)
+                      basis::AbstractString="X")
     p = parse_ttj_path(abspath(dir))
     if lattice === nothing
         lattice = square_lattice_toml(p.L, p.W; yperiodic=true,
@@ -90,6 +90,5 @@ function from_ttj_run(dir::AbstractString; lattice=nothing, lattice_name=nothing
         parameters=Dict("t" => p.t, "t_prime" => p.t_prime, "J" => p.J),
         sector=Dict("n" => round(Int, p.filling * p.L * p.W)),
         algorithm=Dict{String,Any}("driver" => "examples/ttJ_metts.jl", "tau" => p.tau,
-                                   "maxdim" => p.D, "cutoff" => p.cutoff, "seed" => p.seed),
-        chain=something(chain, p.seed))
+                                   "maxdim" => p.D, "cutoff" => p.cutoff, "seed" => p.seed))
 end

@@ -13,7 +13,10 @@ into the library tree, rebuilding the index, and committing.
   value in `parameters`. See [Lattice files](@ref).
 - **Metadata is complete.** Everything needed to interpret the states is in
   the file: model, site type, lattice, couplings, sector, temperature,
-  collapse basis per sample, chain and step, how the samples were produced.
+  collapse basis per sample, step, how the samples were produced.
+- **One file is one METTS run.** A run's samples go into their own file,
+  tagged with its seed, rather than being merged with other runs at the same
+  parameters: if one run turns out to be flawed, the others stay usable.
 
 ## Collecting states during a METTS run
 
@@ -61,7 +64,6 @@ e = Ensemble(
     collapse_bases = ["Z"],
     states     = states,
     step       = steps,
-    chain      = fill(Int32(seed), length(steps)),
     observables = Dict{String,Array{Float64}}("energy" => energy[nwarm+1:end],
                                               "entropy" => entropy[nwarm+1:end]),
 )

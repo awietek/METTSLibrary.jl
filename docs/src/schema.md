@@ -32,8 +32,7 @@ samples for the same parameters go into a new file distinguished by its tag.
 | `coordinates`  | float64 | `(dim, N)`          | copy of the lattice file's `Coordinates`, for readers that do not want to parse TOML |
 | `states`       | uint8   | `(N, M)`            | local state of site `i` in sample `j`, **0-based index into `local_states`** |
 | `basis`        | uint8   | `(M,)`              | 0-based index into `collapse_bases` for each sample |
-| `chain`        | int32   | `(M,)`              | Markov chain id of each sample |
-| `step`         | int32   | `(M,)`              | step within its chain |
+| `step`         | int32   | `(M,)`              | METTS step this sample was taken at |
 | `observables/<name>` | float64 | `(..., M)`    | per-sample observables; last dimension is the sample |
 
 In C or Python (h5py) the shapes appear transposed: `states` is `(M, N)`.

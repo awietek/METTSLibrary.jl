@@ -41,7 +41,7 @@ An [`Ensemble`](@ref) holds:
 | `states` | `(nsites, nsamples)` matrix of `UInt8`, 0-based indices into `local_states` |
 | `local_states` | the label table, e.g. `["Emp", "Up", "Dn"]`, in ITensors order |
 | `basis`, `collapse_bases` | per-sample basis code and its label table, e.g. `["Z", "X"]` |
-| `chain`, `step` | which Markov chain a sample came from, and where in it |
+| `step` | the METTS step the sample was taken at; the run itself is the file (`algorithm["seed"]`) |
 | `observables` | `Dict` of arrays whose last dimension is the sample, e.g. `"energy"`, `"entropy"` |
 | `parameters`, `sector`, `beta` | the Hamiltonian couplings, quantum numbers, inverse temperature |
 | `lattice`, `lattice_name` | the lattice file's TOML text and its name; `lattice(e)` parses it into coordinates and interactions |
@@ -55,15 +55,21 @@ using Statistics
 E = e.observables["energy"]
 mean(E), std(E) / sqrt(length(E))
 
-# per chain
-for c in unique(e.chain)
-    sel = e.chain .== c
-    println("chain $c: ", mean(E[sel]), " over ", count(sel), " samples")
-end
+# drop a burn-in the run did not discard itself
+keep = e.step .> 500
+mean(E[keep]), count(keep)
 ```
 
-The `step` field lets you drop the beginning of each chain if the run did
-not discard a burn-in itself.
+One file is one METTS run, so comparing runs means comparing files: read the
+ensembles of a parameter set and check that their means agree within their
+error bars before pooling them.
+
+```julia
+for p in filter(endswith(".h5"), readdir(dir; join=true))
+    Ep = read_ensemble(p).observables["energy"]
+    println(basename(p), ": ", mean(Ep), " +- ", std(Ep) / sqrt(length(Ep)))
+end
+```
 
 ## Product states for METTS.jl
 

@@ -1,6 +1,6 @@
 name = "METTSLibrary"
 uuid = "4133a110-b6fc-4e1c-a243-06f647d50c2b"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Alexander Wietek <awietek@pks.mpg.de>"]
 
 [deps]
