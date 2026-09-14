@@ -108,6 +108,10 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
         a["nsites"]         = N
         a["nsamples"]       = M
         a["beta"]           = e.beta
+        # Temperature is stored as well as beta, not because it carries new
+        # information but because both are first-class: some people think in T
+        # and some in beta, and the index should answer either.
+        a["temperature"]    = 1 / e.beta
         a["collapse_bases"] = e.collapse_bases
         a["lattice_name"]   = e.lattice_name
         a["lattice_sha256"] = lhash
@@ -146,6 +150,9 @@ function _read_header(f, path)
     d = Dict{String,Any}(k => read_attribute(f, k) for k in
         ("model", "site_type", "local_states", "nsites", "nsamples", "beta", "collapse_bases",
          "lattice_name", "lattice_sha256"))
+    # schema 2 files written before temperature was stored still read
+    d["temperature"] = haskey(attributes(f), "temperature") ?
+                       read_attribute(f, "temperature") : 1 / d["beta"]
     d["parameters"]  = Dict{String,Float64}(k => Float64(v) for (k, v) in _read_attr_group(f, "parameters"))
     d["sector"]      = Dict{String,Int}(k => Int(v) for (k, v) in _read_attr_group(f, "sector"))
     d["algorithm"]   = _read_attr_group(f, "algorithm")
