@@ -1,0 +1,469 @@
+<title>METTS Ensemble Catalogue</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#FBFAFC; --surface:#FFFFFF; --sunk:#F3F3F7; --sunk-2:#EBEBF2;
+  --ink:#1A1C23; --ink-2:#414554; --muted:#6B6F80; --line:#E2E2EA; --line-2:#CFD0DC;
+  --accent:#4A4FD4; --accent-soft:#ECEDFB; --accent-ink:#3A3EAE;
+  --cold:#3B5BDB; --warm:#E8792B;
+  --keep:#2E9E6B; --check:#B7801A; --skip:#C4483F;
+  --keep-bg:#E7F5EE; --check-bg:#FBF1DE; --skip-bg:#FAEAE8;
+  --shadow:0 1px 2px rgba(20,21,28,.06),0 8px 24px -12px rgba(20,21,28,.18);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  --disp:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;
+}
+:root:not([data-theme="light"]){ @media (prefers-color-scheme:dark){
+  --ground:#14151C; --surface:#1C1E27; --sunk:#22242F; --sunk-2:#282B38;
+  --ink:#E8E9F0; --ink-2:#BCC0D0; --muted:#8E93A6; --line:#2C2F3B; --line-2:#3A3E4D;
+  --accent:#8A8FF0; --accent-soft:#262943; --accent-ink:#A8ACF7;
+  --cold:#6E8BF0; --warm:#F0954E;
+  --keep:#54BE8B; --check:#D7A544; --skip:#E2736A;
+  --keep-bg:#1B2E26; --check-bg:#2E2717; --skip-bg:#2E1D1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}}
+:root[data-theme="dark"]{
+  --ground:#14151C; --surface:#1C1E27; --sunk:#22242F; --sunk-2:#282B38;
+  --ink:#E8E9F0; --ink-2:#BCC0D0; --muted:#8E93A6; --line:#2C2F3B; --line-2:#3A3E4D;
+  --accent:#8A8FF0; --accent-soft:#262943; --accent-ink:#A8ACF7;
+  --cold:#6E8BF0; --warm:#F0954E;
+  --keep:#54BE8B; --check:#D7A544; --skip:#E2736A;
+  --keep-bg:#1B2E26; --check-bg:#2E2717; --skip-bg:#2E1D1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1340px;margin:0 auto;padding:28px 24px 72px}
+header{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;
+  padding-bottom:18px;border-bottom:1px solid var(--line)}
+h1{font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);max-width:64ch;margin:0}
+.sub b{color:var(--ink-2);font-weight:500}
+
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:22px 0}
+.cell{background:var(--surface);padding:14px 16px}
+.cell .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.cell .v{font-family:var(--mono);font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px}
+.cell .n{font-size:12px;color:var(--muted);margin-top:1px}
+.cell.hero .v{color:var(--accent-ink)}
+
+.controls{display:flex;flex-direction:column;gap:12px;margin:22px 0 14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row > .lab{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);min-width:64px;flex-shrink:0}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
+  padding:5px 11px;border-radius:999px;cursor:pointer;white-space:nowrap;display:inline-flex;gap:6px;align-items:center}
+.chip:hover{border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+.chip .ct{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"] .ct{color:var(--accent-ink)}
+.chip.f-flag[aria-pressed="true"]{background:var(--check-bg);border-color:var(--check);color:var(--check)}
+input[type="search"],select{font:inherit;font-size:13px;padding:7px 11px;border:1px solid var(--line-2);
+  border-radius:8px;background:var(--surface);color:var(--ink);min-width:220px}
+input[type="search"]:focus-visible,select:focus-visible,.chip:focus-visible,button:focus-visible,
+tr.fam:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.spacer{flex:1}
+.btn{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink-2);cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+
+.tablewrap{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow-x:auto;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:1120px}
+thead th{position:sticky;top:0;z-index:2;background:var(--sunk);text-align:left;font-size:11px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;
+  padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+thead th.num{text-align:right}
+tbody td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr.fam{cursor:pointer}
+tbody tr.fam:hover td{background:var(--sunk)}
+td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lat{font-family:var(--mono);font-size:13px}
+.prj{font-size:11.5px;color:var(--muted);margin-top:2px}
+.par{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.sec{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.tw{display:flex;align-items:center;gap:9px}
+.tn{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.trange{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+/* temperature sweep: one tick per temperature, positioned on log T */
+.sweep{position:relative;height:16px;width:132px;flex-shrink:0;
+  background:linear-gradient(90deg,var(--sunk-2),var(--sunk-2));border-radius:3px}
+.sweep i{position:absolute;top:2px;width:2px;height:12px;border-radius:1px}
+.caret{color:var(--muted);font-size:10px;width:10px;display:inline-block}
+tr.fam.open .caret{color:var(--accent)}
+
+.tag{display:inline-block;font-size:10.5px;font-family:var(--mono);padding:1.5px 6px;border-radius:4px;
+  background:var(--sunk);color:var(--muted);border:1px solid var(--line);margin:1px 3px 1px 0;white-space:nowrap}
+.tag.w{background:var(--check-bg);color:var(--check);border-color:transparent}
+.tag.ok{background:var(--keep-bg);color:var(--keep);border-color:transparent}
+.basis{font-family:var(--mono);font-size:12px}
+.basis.unk{color:var(--check);font-weight:600}
+
+.mk{display:flex;gap:3px}
+.mk button{font:inherit;font-size:11px;font-family:var(--mono);width:24px;height:24px;padding:0;
+  border-radius:6px;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);cursor:pointer;line-height:1}
+.mk button:hover{border-color:var(--accent);color:var(--accent-ink)}
+.mk button[aria-pressed="true"][data-m="keep"]{background:var(--keep);border-color:var(--keep);color:#fff}
+.mk button[aria-pressed="true"][data-m="check"]{background:var(--check);border-color:var(--check);color:#fff}
+.mk button[aria-pressed="true"][data-m="skip"]{background:var(--skip);border-color:var(--skip);color:#fff}
+tr.fam.m-keep td:first-child{box-shadow:inset 3px 0 0 var(--keep)}
+tr.fam.m-check td:first-child{box-shadow:inset 3px 0 0 var(--check)}
+tr.fam.m-skip td:first-child{box-shadow:inset 3px 0 0 var(--skip)}
+tr.fam.m-skip td{opacity:.55}
+
+tr.det td{background:var(--sunk);padding:0;border-bottom:1px solid var(--line)}
+.det-in{padding:16px 18px 18px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px 26px;margin-bottom:16px}
+.meta dl{margin:0}
+.meta dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.meta dd{margin:3px 0 0;font-family:var(--mono);font-size:12.5px;word-break:break-word}
+.note{font-size:12.5px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:12px;margin-top:4px;max-width:80ch}
+.note div{margin-bottom:6px}
+.note b{color:var(--ink)}
+.tt{width:100%;border-collapse:collapse;min-width:0;background:var(--surface);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tt th{position:static;background:var(--sunk-2);font-size:10.5px;padding:6px 9px;cursor:default}
+.tt td{padding:5px 9px;border-bottom:1px solid var(--line);font-size:12.5px}
+.tt tr:last-child td{border-bottom:none}
+.tdot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px;vertical-align:middle}
+.ttwrap{max-height:340px;overflow:auto;border-radius:8px}
+
+.foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  margin-top:14px;color:var(--muted);font-size:12.5px}
+.count{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){tr.det .det-in{animation:o .16s ease-out}}
+@keyframes o{from{opacity:0}to{opacity:1}}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>METTS Ensemble Catalogue</h1>
+    <p class="sub">Every recoverable METTS run on the cluster, grouped into <b>parameter families</b> —
+      one physical system: model, lattice, couplings, sector. The temperature sweep lives inside each
+      family; open a row to see it. Flags mark what needs a decision before ingest.</p>
+  </div>
+  <div class="row" style="gap:6px">
+    <button class="btn" id="copy">Copy decisions</button>
+    <button class="btn" id="reset">Clear marks</button>
+  </div>
+</header>
+
+<div class="strip" id="strip"></div>
+
+<div class="controls">
+  <div class="row"><span class="lab">Project</span><span id="f-proj" class="row" style="gap:6px"></span></div>
+  <div class="row"><span class="lab">Model</span><span id="f-model" class="row" style="gap:6px"></span></div>
+  <div class="row"><span class="lab">Source</span><span id="f-prov" class="row" style="gap:6px"></span></div>
+  <div class="row"><span class="lab">Flag</span><span id="f-flag" class="row" style="gap:6px"></span></div>
+  <div class="row">
+    <span class="lab">Find</span>
+    <input type="search" id="q" placeholder="lattice, couplings, sector…" aria-label="Search families">
+    <select id="mark" aria-label="Filter by review mark">
+      <option value="">All marks</option>
+      <option value="unmarked">Unreviewed</option>
+      <option value="keep">Marked keep</option>
+      <option value="check">Marked check</option>
+      <option value="skip">Marked skip</option>
+    </select>
+    <button class="btn" id="expandall">Expand all</button>
+    <span class="spacer"></span>
+    <span class="count" id="showing"></span>
+  </div>
+</div>
+
+<div class="tablewrap">
+  <table>
+    <thead><tr>
+      <th data-s="lattice">Lattice / project</th>
+      <th data-s="model">Model</th>
+      <th data-s="params">Couplings</th>
+      <th data-s="sector">Sector</th>
+      <th data-s="nT">Temperature sweep</th>
+      <th class="num" data-s="nruns">Runs</th>
+      <th class="num" data-s="nsamples">Samples</th>
+      <th class="num" data-s="nsites">Sites</th>
+      <th data-s="bases">Basis</th>
+      <th>Flags</th>
+      <th>Review</th>
+    </tr></thead>
+    <tbody id="tb"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden>No families match these filters.</div>
+</div>
+
+<div class="foot">
+  <span id="marksum"></span>
+</div>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+var raw = JSON.parse(document.getElementById('data').textContent);
+var P = raw.pool;
+var fams = raw.fams.map(function(r,i){
+  return {i:i, project:P[r[0]], model:P[r[1]], site:P[r[2]], lattice:P[r[3]],
+          params:P[r[4]], sector:P[r[5]], nsites:r[6], nT:r[7], Tmin:r[8], Tmax:r[9],
+          nruns:r[10], nsamples:r[11], raw:r[12], est:r[13],
+          bases:P[r[14]], flags:P[r[15]] ? P[r[15]].split(',') : [], fmts:P[r[16]],
+          prov:P[r[17]], maxdims:P[r[18]],
+          temps:r[19].map(function(t){
+            return {T:t[0], beta:t[1], nruns:t[2], nsamples:t[3],
+                    bases:P[t[4]], flags:P[t[5]] ? P[t[5]].split(',') : [], seeds:t[6]};
+          }),
+          key:[P[r[0]],P[r[1]],P[r[3]],P[r[4]],P[r[5]]].join('|')};
+});
+
+var MK={};
+try{ MK = JSON.parse(localStorage.getItem('metts.fammarks')||'{}'); }catch(e){ MK={}; }
+function saveMarks(){ try{ localStorage.setItem('metts.fammarks', JSON.stringify(MK)); }catch(e){} }
+
+var fmtI=new Intl.NumberFormat('en-US');
+function n(x){ return fmtI.format(x); }
+function bytes(b){
+  if(b>=1073741824) return (b/1073741824).toFixed(2)+' GB';
+  if(b>=1048576) return (b/1048576).toFixed(1)+' MB';
+  if(b>=1024) return (b/1024).toFixed(0)+' kB';
+  return b+' B';
+}
+var allT=[]; fams.forEach(function(f){ f.temps.forEach(function(t){ if(t.T>0) allT.push(t.T); }); });
+var lo=Math.log10(Math.min.apply(null,allT)), hi=Math.log10(Math.max.apply(null,allT));
+function upos(T){ return Math.max(0,Math.min(1,(Math.log10(T)-lo)/(hi-lo||1))); }
+function tcol(T){
+  if(!(T>0)) return 'var(--muted)';
+  var u=upos(T), c1=[59,91,219], c2=[232,121,43];
+  return 'rgb('+c1.map(function(v,k){return Math.round(v+(c2[k]-v)*u);}).join(',')+')';
+}
+var FLAGNOTE={
+  basis_ambiguous:'Total Sz is constant across fewer than 20 stored samples, which an X-basis run can produce by chance, and the family contains both X and Z so it cannot decide either. Basis undetermined.',
+  basis_inferred:'Basis recovered from the states: X-basis collapse does not conserve total Sz, Z-basis does. Calibrated on 113 files that record it in the filename — 80/80 updates.x showed Sz varying, 33/33 updates.z showed it fixed.',
+  basis_from_family:'Too few samples at some temperatures to decide alone, so the basis was taken from the rest of this family. The basis is set by the run script and a sweep is one script run repeatedly.',
+  mixed_basis:'This family contains both X and Z collapsed runs. The library stores basis per sample so they can coexist, but X and Z samples are not interchangeable for observables.',
+  no_entropy:'Only energy was recorded per step; entanglement entropy was never measured. Energy alone is sufficient, so this is informational.',
+  lattice_needs_conversion:'A lattice file exists but in the project’s own TOML schema with 1-based site indices; it must be converted to the library format, which is 0-based.',
+  lattice_built_in_code:'No lattice file exists — the Hamiltonian was built in code (hubbard_kanamori_square), so the lattice must be regenerated exactly, orbital-fastest site ordering included.',
+  misfiled_under_kagome:'Written into the kagome.superconductors data directory by hubbard.kanamori/run.sh. These are square-lattice multi-orbital runs, not kagome.',
+  multi_project:'The same physical system was run under more than one project directory. They are one ensemble by physics, but their seeds overlap, so ingesting both would collide on <seed>.h5 — the tag needs to record the project, or one source has to be chosen.',
+  duplicate_seeds:'Two or more runs share both a seed number and a bond dimension, so nothing in the filename distinguishes them. These need inspecting before ingest.',
+  multi_maxdim:'Runs at several bond dimensions sit in this ensemble — the same thermal state sampled at different accuracy. A seed number alone is therefore not a unique tag; the library tag must carry maxdim too (seed1_maxm2000).',
+  backup_subtree:'These runs live in a *_bkup directory alongside the live tree. Check whether they duplicate runs already counted elsewhere before ingesting — double-counting would corrupt any statistics drawn from the ensemble.',
+  checkpoint_only:'The only surviving states are single final checkpoints — fully thermalised, ideal for warm starts, too few for statistics.',
+  has_checkpoints:'Some runs contribute only a final checkpoint state.',
+  few_samples:'At least one temperature has fewer than 100 samples in total.',
+  no_sector:'No conserved quantum numbers recorded — expected for the Heisenberg runs.',
+  mixed_nsites:'Runs report different site counts, which should not happen.'
+};
+
+var tot=fams.reduce(function(a,f){
+  a.fam++; a.ens+=f.nT; a.runs+=f.nruns; a.samp+=f.nsamples; a.raw+=f.raw; a.est+=f.est;
+  if(!f.flags.length) a.clean++;
+  return a;
+},{fam:0,ens:0,runs:0,samp:0,raw:0,est:0,clean:0});
+document.getElementById('strip').innerHTML=[
+  ['Families', n(tot.fam), n(tot.clean)+' with no flags'],
+  ['Ensembles', n(tot.ens), 'family × temperature'],
+  ['Runs', n(tot.runs), 'independent Markov chains'],
+  ['Samples', (tot.samp/1e6).toFixed(2)+'M', 'collapsed product states'],
+  ['Source dumps', (tot.raw/1099511627776).toFixed(2)+' TB', 'on /data/condmat'],
+  ['In the library', bytes(tot.est), '≈'+Math.round(tot.raw/tot.est)+'× smaller', 1]
+].map(function(c){
+  return '<div class="cell'+(c[3]?' hero':'')+'"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+
+         '</div><div class="n">'+c[2]+'</div></div>';
+}).join('');
+
+function facet(el,getter,cls){
+  var counts={};
+  fams.forEach(function(f){ getter(f).forEach(function(v){ if(v) counts[v]=(counts[v]||0)+1; }); });
+  el.innerHTML=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(k){
+    return '<button class="chip '+(cls||'')+'" data-k="'+k+'" aria-pressed="false">'+k+
+           ' <span class="ct">'+n(counts[k])+'</span></button>';
+  }).join('');
+  el.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')==='true'?'false':'true');
+    render();
+  });
+}
+facet(document.getElementById('f-proj'),function(f){return [f.project];});
+facet(document.getElementById('f-model'),function(f){return [f.model];});
+facet(document.getElementById('f-prov'),function(f){return f.prov.split(' + ');});
+facet(document.getElementById('f-flag'),function(f){return f.flags.length?f.flags:['(no flags)'];},'f-flag');
+function picked(el){
+  return Array.prototype.filter.call(el.querySelectorAll('.chip'),function(b){
+    return b.getAttribute('aria-pressed')==='true';
+  }).map(function(b){return b.dataset.k;});
+}
+
+var sortKey='nsamples', sortDir=-1;
+document.querySelectorAll('thead th[data-s]').forEach(function(th){
+  th.addEventListener('click',function(){
+    var k=th.dataset.s;
+    if(sortKey===k) sortDir=-sortDir; else { sortKey=k; sortDir=-1; }
+    render();
+  });
+});
+
+function current(){
+  var ps=picked(document.getElementById('f-proj')),
+      ms=picked(document.getElementById('f-model')),
+      vs=picked(document.getElementById('f-prov')),
+      fs=picked(document.getElementById('f-flag')),
+      q=document.getElementById('q').value.trim().toLowerCase(),
+      mk=document.getElementById('mark').value;
+  return fams.filter(function(f){
+    if(ps.length&&ps.indexOf(f.project)<0) return false;
+    if(ms.length&&ms.indexOf(f.model)<0) return false;
+    if(vs.length&&!f.prov.split(' + ').some(function(x){return vs.indexOf(x)>=0;})) return false;
+    if(fs.length){
+      var hit=fs.some(function(x){ return x==='(no flags)'?f.flags.length===0:f.flags.indexOf(x)>=0; });
+      if(!hit) return false;
+    }
+    if(mk){ var m=MK[f.key]; if(mk==='unmarked'?!!m:m!==mk) return false; }
+    if(q){
+      var hay=(f.lattice+' '+f.params+' '+f.sector+' '+f.project+' '+f.model+' '+f.bases).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  }).sort(function(a,b){
+    var x=a[sortKey],y=b[sortKey];
+    if(typeof x==='string') return sortDir*x.localeCompare(y);
+    return sortDir*(x-y);
+  });
+}
+
+function flagTags(fl){
+  if(!fl.length) return '<span class="tag ok">clean</span>';
+  return fl.map(function(f){
+    var soft=(f==='few_samples'||f==='has_checkpoints'||f==='no_sector'||
+              f==='no_entropy'||f==='basis_inferred'||f==='basis_from_family'||
+              f==='multi_maxdim');
+    return '<span class="tag'+(soft?'':' w')+'">'+f.replace(/_/g,' ')+'</span>';
+  }).join('');
+}
+function sweep(f){
+  return '<span class="sweep" title="'+f.nT+' temperatures, log scale">'+
+    f.temps.map(function(t){
+      return '<i style="left:'+(upos(t.T)*100).toFixed(1)+'%;background:'+tcol(t.T)+'"></i>';
+    }).join('')+'</span>';
+}
+
+var tb=document.getElementById('tb'), openSet={};
+function render(){
+  var list=current();
+  tb.innerHTML=list.map(function(f){
+    var m=MK[f.key]||'', isOpen=!!openSet[f.key];
+    var head='<tr class="fam '+(m?'m-'+m:'')+(isOpen?' open':'')+'" data-k="'+f.key+'" data-i="'+f.i+'" tabindex="0">'+
+      '<td><span class="caret">'+(isOpen?'▾':'▸')+'</span> <span class="lat">'+f.lattice+'</span>'+
+        '<div class="prj" style="margin-left:18px">'+f.project+'</div></td>'+
+      '<td class="lat">'+f.model+'</td>'+
+      '<td><span class="par">'+(f.params||'—')+'</span></td>'+
+      '<td><span class="sec">'+(f.sector||'—')+'</span></td>'+
+      '<td><div class="tw">'+sweep(f)+'<span><span class="tn">'+f.nT+' T</span>'+
+        '<div class="trange">'+(+f.Tmin).toFixed(4)+'–'+(+f.Tmax).toFixed(3)+'</div></span></div></td>'+
+      '<td class="num">'+n(f.nruns)+'</td>'+
+      '<td class="num">'+n(f.nsamples)+'</td>'+
+      '<td class="num">'+n(f.nsites)+'</td>'+
+      '<td><span class="basis'+(f.bases.indexOf('?')>=0?' unk':'')+'">'+f.bases+'</span></td>'+
+      '<td>'+flagTags(f.flags)+'</td>'+
+      '<td><div class="mk">'+['keep','check','skip'].map(function(k){
+          return '<button data-m="'+k+'" aria-pressed="'+(m===k)+'" title="'+k+'">'+
+                 (k==='keep'?'✓':k==='check'?'?':'✕')+'</button>';
+        }).join('')+'</div></td></tr>';
+    return head + (isOpen ? detail(f) : '');
+  }).join('');
+  document.getElementById('empty').hidden=list.length>0;
+  document.getElementById('showing').textContent=
+    n(list.length)+' of '+n(fams.length)+' families · '+
+    n(list.reduce(function(a,f){return a+f.nT;},0))+' ensembles';
+  marksum();
+}
+
+function detail(f){
+  var notes=f.flags.map(function(x){
+    return FLAGNOTE[x]?'<div><b>'+x.replace(/_/g,' ')+'</b> — '+FLAGNOTE[x]+'</div>':'';
+  }).join('');
+  var rows=f.temps.map(function(t){
+    return '<tr><td><span class="tdot" style="background:'+tcol(t.T)+'"></span>'+
+      '<span class="lat">'+(+t.T).toFixed(5)+'</span></td>'+
+      '<td class="num">'+(+t.beta).toFixed(2)+'</td>'+
+      '<td class="num">'+n(t.nruns)+'</td>'+
+      '<td class="num">'+n(t.nsamples)+'</td>'+
+      '<td class="lat">'+t.bases+'</td>'+
+      '<td class="lat" style="color:var(--muted)">'+t.seeds+'</td>'+
+      '<td>'+(t.flags.length?flagTags(t.flags):'')+'</td></tr>';
+  }).join('');
+  return '<tr class="det"><td colspan="11"><div class="det-in">'+
+    '<div class="meta">'+
+      '<dl><dt>Provenance</dt><dd>'+f.prov.replace(/ \+ /g,'<br>')+'</dd></dl>'+
+      '<dl><dt>Site type</dt><dd>'+f.site+'</dd></dl>'+
+      '<dl><dt>Source format</dt><dd>'+f.fmts+'</dd></dl>'+
+      '<dl><dt>Bond dimension</dt><dd>'+f.maxdims+'</dd></dl>'+
+      '<dl><dt>Temperatures</dt><dd>'+f.nT+' from T='+(+f.Tmin).toFixed(5)+' to '+(+f.Tmax).toFixed(4)+'</dd></dl>'+
+      '<dl><dt>β range</dt><dd>'+(1/f.Tmax).toFixed(2)+' – '+(1/f.Tmin).toFixed(1)+'</dd></dl>'+
+      '<dl><dt>Mean samples / run</dt><dd>'+Math.round(f.nsamples/f.nruns)+'</dd></dl>'+
+      '<dl><dt>Source size</dt><dd>'+bytes(f.raw)+'</dd></dl>'+
+      '<dl><dt>Library size</dt><dd>'+bytes(f.est)+'</dd></dl>'+
+      '<dl><dt>Library path</dt><dd>'+f.model+'/'+f.lattice+'/'+
+        (f.params.replace(/ /g,'_')||'default')+'/'+(f.sector.replace(/ /g,'_')||'default')+
+        '/beta=&lt;β&gt;/seed&lt;n&gt;.h5</dd></dl>'+
+    '</div>'+
+    (notes?'<div class="note">'+notes+'</div>':'')+
+    '<div class="ttwrap" style="margin-top:14px"><table class="tt"><thead><tr>'+
+      '<th>Temperature</th><th class="num">β</th><th class="num">Runs</th>'+
+      '<th class="num">Samples</th><th>Basis</th><th>Seeds</th><th>Flags</th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '</div></td></tr>';
+}
+
+function marksum(){
+  var c={keep:0,check:0,skip:0};
+  Object.keys(MK).forEach(function(k){ if(c[MK[k]]!==undefined) c[MK[k]]++; });
+  document.getElementById('marksum').innerHTML=
+    '<span class="count">'+c.keep+'</span> keep · <span class="count">'+c.check+
+    '</span> check · <span class="count">'+c.skip+'</span> skip · marks are stored in this browser only';
+}
+
+tb.addEventListener('click',function(e){
+  var btn=e.target.closest('.mk button'), tr=e.target.closest('tr.fam');
+  if(!tr) return;
+  if(btn){
+    e.stopPropagation();
+    var k=tr.dataset.k, m=btn.dataset.m;
+    if(MK[k]===m) delete MK[k]; else MK[k]=m;
+    saveMarks(); render(); return;
+  }
+  openSet[tr.dataset.k]=!openSet[tr.dataset.k];
+  render();
+});
+tb.addEventListener('keydown',function(e){
+  if(e.key==='Enter'||e.key===' '){
+    var tr=e.target.closest('tr.fam');
+    if(tr){ e.preventDefault(); openSet[tr.dataset.k]=!openSet[tr.dataset.k]; render(); }
+  }
+});
+document.getElementById('expandall').addEventListener('click',function(){
+  var list=current(), anyClosed=list.some(function(f){ return !openSet[f.key]; });
+  list.forEach(function(f){ openSet[f.key]=anyClosed; });
+  this.textContent=anyClosed?'Collapse all':'Expand all';
+  render();
+});
+document.getElementById('q').addEventListener('input',render);
+document.getElementById('mark').addEventListener('change',render);
+document.getElementById('reset').addEventListener('click',function(){ MK={}; saveMarks(); render(); });
+document.getElementById('copy').addEventListener('click',function(){
+  var out=['mark\tproject\tmodel\tlattice\tparams\tsector\tnT\tTmin\tTmax\truns\tsamples'];
+  fams.forEach(function(f){
+    if(MK[f.key]) out.push([MK[f.key],f.project,f.model,f.lattice,f.params,f.sector,
+                            f.nT,f.Tmin,f.Tmax,f.nruns,f.nsamples].join('\t'));
+  });
+  var b=this;
+  navigator.clipboard.writeText(out.join('\n')).then(function(){
+    b.textContent='Copied '+(out.length-1)+' decisions';
+    setTimeout(function(){ b.textContent='Copy decisions'; },1800);
+  },function(){ b.textContent='Copy failed'; setTimeout(function(){ b.textContent='Copy decisions'; },1800); });
+});
+
+render();
+})();
+</script>
