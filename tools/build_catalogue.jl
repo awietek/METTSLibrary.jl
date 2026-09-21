@@ -233,6 +233,15 @@ end
 # same physics under a second name.
 const LATROOTS = ["/home/awietek/Research/Projects", "/data/condmat/awietek"]
 
+# Lattices the library renames because the cluster name contradicts what the
+# file declares. The .lat on the cluster keeps its name -- only the library's
+# lattice_name changes -- so the resolver has to apply the same mapping or the
+# catalogue would predict paths the library does not use.
+#   ttpJ.mixedd: declares TX TY JX JY only, no t', so it is not a "ttp" lattice.
+# Longest match first; plain .ttpJ lattices really do declare T Tp J and stay.
+const LATRENAME = [".ttpJ.mixedd" => ".tJ.mixedd"]
+library_lattice_name(s) = foldl((a, p) -> replace(a, p), LATRENAME; init = s)
+
 function lattice_index()
     idx = String[]
     for root in LATROOTS
@@ -289,7 +298,11 @@ function resolve_lattice(proj::AbstractString, prov::AbstractString,
             occursin("/$seg/lattice-files/", f) && (score += 2)
         end
         if score > bestscore
-            bestscore = score; best = (file = f, name = stem, couplings = cpl)
+            # `name` is the LIBRARY's lattice_name, which may differ from the
+            # cluster file's stem (see LATRENAME), so the predicted path matches
+            # what write_ensemble actually produces.
+            bestscore = score
+            best = (file = f, name = library_lattice_name(stem), couplings = cpl)
         end
     end
     LATCACHE[key] = best
