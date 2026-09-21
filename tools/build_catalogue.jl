@@ -18,6 +18,52 @@ end
 
 num(s) = parse(Float64, s)
 
+# The time evolution parameters are in neither the dump nor its filename: they
+# are set in the run script, and which run script applies follows from which
+# binary produced the run, which the model determines.
+#
+#   metts_tj, metts_spinhalf  take a scalar --tau. Every production script sets
+#       tau=0.2, init_tau=0.1, k=3 -- verified identical in
+#       superconductors/tj/metts/run_metts_tj_auto{,_initstate,_initstate_tau_0.2}.sh,
+#       hubbard.optical.lattice/tj/metts/run_metts_tj_auto.sh and
+#       triangular.heisenberg.dynamics/metts/run_metts_spinhalf.sh.
+#       (run_metts_tj_test.sh sets tau=0.5 but writes outfile="test" with its
+#       output directory commented out, so no test run reached the archive.)
+#       NB the metts_tj default is tau=0.5, so this is the script's value, not
+#       the code's -- a run launched without the script would differ.
+#
+#   metts_hubbard  takes no --tau flag. It reads a two-stage schedule from a
+#       timeevofile the run script generates, identical in every Hubbard script
+#       found (superconductors/hubbard, hubbard.polaron):
+#           TEBD 0   0.02  1e-12
+#           TDVP 0.1 0.5   <run cutoff>
+#       TimeEvolutionParamsList (time_evolution.cpp:87) reads these four tokens
+#       as (method, start_time, tau, cutoff) and takes each stage's END from the
+#       next line's start, or maxtime = beta/2 for the last. So TEBD runs
+#       0 -> 0.1 at tau=0.02 and TDVP runs 0.1 -> beta/2 at tau=0.5: the bulk
+#       step is 0.5 and 0.02 is the initial stage, exactly parallel to the t-J
+#       tau/init_tau pair. At T=0.0125 (beta/2 = 40) TDVP covers 39.9 of 40.
+#       The scalar form is still in metts_hubbard.cpp:116, commented out.
+#
+# These are the NOMINAL values the scripts set. TimeEvolutionParams::init
+# rounds each stage to a commensurate step (n_steps = round(duration/tau),
+# tau_commensurate = duration/n_steps), so the step actually taken differs
+# slightly and varies with temperature -- 39.9/80 = 0.49875 in the case above.
+# The tag records the nominal value, which is the run's setting and is constant
+# across an ensemble; the commensurate step is derived, not a parameter.
+#
+# Three Hubbard projects (hubbard.triangular.metts.v2, hubbard.square.metts,
+# hubbard.bfield) have no surviving run script anywhere on the cluster. They
+# ran metts_hubbard, which has no tau parameter, so the conclusion holds for
+# them; the schedule itself is inferred from the sibling scripts, not read.
+const TAU_SCRIPT = Dict{String,Vector{Pair{String,Any}}}(
+    "tJ"         => ["tau" => 0.2, "init_tau" => 0.1, "k" => 3],
+    "Heisenberg" => ["tau" => 0.2, "init_tau" => 0.1, "k" => 3],
+    "Hubbard"    => ["tau" => 0.5, "init_tau" => 0.02,
+                     "time_evolution" => "TEBD 0->0.1 tau 0.02 cutoff 1e-12; TDVP 0.1->beta/2 tau 0.5"],
+)
+timeevo_algo(model) = get(TAU_SCRIPT, model, Pair{String,Any}[])
+
 # helper: pull "name.value" pairs like t.1.00.tp.0.20.J.0.40.holes.12 out of a dir
 function kvdir(s::AbstractString)
     out = Pair{String,Float64}[]
@@ -296,7 +342,9 @@ for line in eachline(joinpath(W, "classified.tsv"))
     f = basename(path)
     push!(runs, Run(proj, proj, "legacy_cpp", model, st, lat, par, sec, T,
         seed_of(f), basis_final(path, f),
-        ["maxdim" => maxm_of(f), "cutoff" => cut_of(f), "nmetts" => nmetts_of(f), "nwarm" => nwarm_of(f)],
+        vcat(Pair{String,Any}["maxdim" => maxm_of(f), "cutoff" => cut_of(f),
+                              "nmetts" => nmetts_of(f), "nwarm" => nwarm_of(f)],
+             timeevo_algo(model)),
         nsites, nsteps, nsc, path, bytes))
 end
 
@@ -355,7 +403,9 @@ for line in eachline(joinpath(W, "names.paths"))
     f = basename(path)
     push!(runs, Run(proj, proj, "legacy_cpp_chkpt", model, st, lat, par, sec, T,
         seed_of(f), basis_of(f),
-        ["maxdim" => maxm_of(f), "cutoff" => cut_of(f), "nmetts" => nmetts_of(f), "nwarm" => nwarm_of(f)],
+        vcat(Pair{String,Any}["maxdim" => maxm_of(f), "cutoff" => cut_of(f),
+                              "nmetts" => nmetts_of(f), "nwarm" => nwarm_of(f)],
+             timeevo_algo(model)),
         nsites, 1, 0, path, filesize(path)))
 end
 
