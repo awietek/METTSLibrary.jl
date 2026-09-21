@@ -18,7 +18,7 @@ function synthetic_tj(; Lx=4, Ly=2, nsamples=10, nup=3, ndn=2, beta=2.0, seed=1)
         states[perm[nup+1:nup+ndn], j] .= 2  # Dn
     end
     Ensemble(
-        model="tJ", site_type="tJ",
+        model="tJ", project="testproject", site_type="tJ",
         lattice=square_lattice_toml(Lx, Ly; yperiodic=true, bonds=TJ_BONDS),
         lattice_name="square.L$(Lx).W$(Ly).cyl",
         beta=beta,
@@ -154,8 +154,13 @@ end
 @testset "paths" begin
     e = synthetic_tj()
     rel = ML.relpath_for(e; tag="chain01")
-    @test rel == joinpath("tJ", "square.L4.W2.cyl", "J=0.4_t=3.0_t_prime=-0.3", "ndn=2_nup=3",
-                          "T=00000.500000_beta=00002.000000", "chain01.h5")
+    @test rel == joinpath("tJ", "testproject", "square.L4.W2.cyl", "J=0.4_t=3.0_t_prime=-0.3",
+                          "ndn=2_nup=3", "T=00000.500000_beta=00002.000000", "chain01.h5")
+    # a project is part of an ensemble's identity: the same physics run by two
+    # people is two datasets, and they must not land on one path
+    @test ML.relpath_for(with(e; project="other"); tag="a") !=
+          ML.relpath_for(with(e; project="mine");  tag="a")
+    @test_throws ArgumentError ML.relpath_for(with(e; project=""); tag="a")
     # a temperature whose inverse is not exactly representable must still give a
     # clean directory: beta = 1/0.0375 = 26.666..., and 1/beta round-trips to
     # 0.037500000000000006
@@ -179,8 +184,8 @@ end
         @test isfile(path)
         @test_throws ErrorException write_ensemble(root, e; tag="a")     # append-only
 
-        # the lattice lives one directory above the HDF5 file, named after the lattice
-        latf = joinpath(root, "tJ", "square.L4.W2.cyl", "square.L4.W2.cyl.toml")
+        # the lattice lives in the lattice directory, inside the project
+        latf = joinpath(root, "tJ", "testproject", "square.L4.W2.cyl", "square.L4.W2.cyl.toml")
         @test isfile(latf)
         @test read(latf, String) == e.lattice
         @test isempty(filter(endswith(".toml"), readdir(dirname(path))))
@@ -197,9 +202,9 @@ end
         @test r.provenance["creator"] == "runtests"
         h5open(path, "r") do f
             @test read(f["coordinates"])[:, 2] == [0.0, 1.0]
-            # schema 2 dropped /chain: one file is one run, seed lives in /algorithm
+            # one file is one run, so the seed lives in /algorithm, not a column
             @test !haskey(f, "chain")
-            @test read_attribute(f, "schema_version") == 2
+            @test read_attribute(f, "project") == e.project
         end
 
         m = ML.read_metadata(path)
@@ -214,13 +219,14 @@ end
         # other temperatures and parameter sets on the same lattice share the file
         write_ensemble(root, with(e; beta=3.0); tag="a")
         write_ensemble(root, with(e; parameters=merge(e.parameters, Dict("J" => 0.5))); tag="a")
-        @test length(filter(endswith(".toml"), readdir(joinpath(root, "tJ", "square.L4.W2.cyl")))) == 1
+        @test length(filter(endswith(".toml"),
+                            readdir(joinpath(root, "tJ", "testproject", "square.L4.W2.cyl")))) == 1
         # a different lattice under the same name is refused
         other = with(e; lattice=square_lattice_toml(4, 2; yperiodic=false, bonds=TJ_BONDS))
         @test_throws ErrorException write_ensemble(root, other; tag="a")
         # ... and accepted under its own name
         rel4 = write_ensemble(root, with(other; lattice_name="square.L4.W2.open"); tag="a")
-        latf4 = joinpath(root, "tJ", "square.L4.W2.open", "square.L4.W2.open.toml")
+        latf4 = joinpath(root, "tJ", "testproject", "square.L4.W2.open", "square.L4.W2.open.toml")
         @test isfile(latf4)
         @test read_ensemble(joinpath(root, rel4)).lattice_name == "square.L4.W2.open"
         # missing or modified lattice file is detected on read
@@ -268,7 +274,8 @@ end
         @test length(parsed["ensembles"]) == 3
         first_entry = parsed["ensembles"][1]
         @test first_entry["couplings"] == ["t", "J", "t_prime"]
-        @test first_entry["lattice"] == joinpath("tJ", "square.L4.W2.cyl", "square.L4.W2.cyl.toml")
+        @test first_entry["lattice"] ==
+              joinpath("tJ", "testproject", "square.L4.W2.cyl", "square.L4.W2.cyl.toml")
         @test first_entry["lattice_name"] == "square.L4.W2.cyl"
         @test length(first_entry["lattice_sha256"]) == 64
         @test length(unique(x["lattice"] for x in parsed["ensembles"])) == 2
@@ -324,7 +331,7 @@ end
         write(lat, "[Coordinates]\n" * join(string.(0:N-1), "\n") *
                    "\n[Interactions]\n" * join(["HOP T $i $(i+1)" for i in 0:N-2], "\n") * "\n")
 
-        kw = (model="tJ", site_type="tJ", temperature=0.5, basis="Z",
+        kw = (model="tJ", project="testproject", site_type="tJ", temperature=0.5, basis="Z",
               parameters=Dict("T" => 1.0, "J" => 0.3), sector=Dict("nup" => 2, "ndn" => 2))
         e = from_legacy_cpp(dump; lattice=lat, kw...)
         @test e.lattice_name == "chain"                     # from the file name
@@ -355,10 +362,11 @@ end
             d = f["ProductState"]; v = read(d); v[1, 1] = 3.0; write(d, v)
         end
         @test_throws ErrorException from_legacy_cpp(dump; lattice=lat, kw...)
-        e3 = from_legacy_cpp(dump; lattice=lat, model="Hubbard", site_type="Electron", beta=1.0,
+        e3 = from_legacy_cpp(dump; lattice=lat, model="Hubbard", project="testproject",
+                             site_type="Electron", beta=1.0,
                              parameters=Dict("T" => 1.0))
         @test e3.states[1, 1] == 3
-        @test startswith(ML.relpath_for(e3; tag="x"), joinpath("Hubbard", "chain"))
+        @test startswith(ML.relpath_for(e3; tag="x"), joinpath("Hubbard", "testproject", "chain"))
     end
 end
 
@@ -374,7 +382,7 @@ end
         @test p.L == 3 && p.W == 2 && p.J == 0.4 && p.t == 3.0 && p.t_prime == -0.3
         @test p.T == 0.2 && p.D == 1000 && p.tau == 0.1 && p.cutoff == 1e-8 && p.seed == 7
 
-        e = from_ttj_run(dir)
+        e = from_ttj_run(dir; project="testproject")
         @test nsites(e) == 6 && nsamples(e) == 3
         @test e.step == Int32[1, 2, 4]
         @test e.states[:, 1] == UInt8[0, 1, 2, 1, 2, 1]

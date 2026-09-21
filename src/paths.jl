@@ -1,7 +1,12 @@
 # Layout of the library tree:
 #
-#   <model>/<lattice_name>/<lattice_name>.toml
-#   <model>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5
+#   <model>/<project>/README.md                  who ran it, when, which papers
+#   <model>/<project>/<lattice_name>/<lattice_name>.toml
+#   <model>/<project>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5
+#
+# A project is one researcher's body of work and may span several lattices.
+# Runs at identical physics in two projects are different data and stay apart;
+# finding all data at some couplings is an index query, not a directory listing.
 #
 # One file is one METTS run. The tag must identify the run uniquely: across the
 # cluster archive the seed alone repeats at different bond dimensions, (seed,
@@ -32,8 +37,8 @@ _beta_dir(e::Ensemble) = string("T=", _tfield(1 / e.beta), "_beta=", _tfield(e.b
     relpath_for(e::Ensemble; tag) -> String
 
 Location of an ensemble inside the library, relative to its root:
-`<model>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5`, e.g.
-`tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=00000.250000_beta=00004.000000/seed3_maxm2000_X.h5`.
+`<model>/<project>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5`, e.g.
+`tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=00000.250000_beta=00004.000000/seed3_maxm2000_X.h5`.
 The temperature directory carries both labels so it reads either way, each in a
 fixed 5+6 field: zero padded so a directory listing comes out in temperature
 order, six decimals so the value is exact. The file stores both as attributes
@@ -43,7 +48,10 @@ bond dimension, collapse basis and source tree, wherever those repeat.
 function relpath_for(e::Ensemble; tag::AbstractString)
     isempty(tag) && throw(ArgumentError("tag must not be empty"))
     occursin(r"[/\\\s]", tag) && throw(ArgumentError("tag must not contain slashes or whitespace"))
-    return joinpath(e.model, e.lattice_name, _parameter_dir(e), _sector_dir(e),
+    isempty(e.project) && throw(ArgumentError("project must not be empty"))
+    occursin(r"[/\\\s]", e.project) &&
+        throw(ArgumentError("project must not contain slashes or whitespace, got '$(e.project)'"))
+    return joinpath(e.model, e.project, e.lattice_name, _parameter_dir(e), _sector_dir(e),
                     _beta_dir(e), tag * ".h5")
 end
 

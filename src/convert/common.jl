@@ -16,7 +16,7 @@ _now() = Dates.format(now(UTC), dateformat"yyyy-mm-ddTHH:MM:SS\Z")
 # Assemble and validate an Ensemble from converted states and user-supplied metadata.
 function _converted(states::Matrix{UInt8}, steps::AbstractVector{<:Integer};
                     source::AbstractString, source_format::String, code::String,
-                    lattice::AbstractString, lattice_name, model, site_type,
+                    lattice::AbstractString, lattice_name, model, project, site_type,
                     beta, temperature, basis, parameters, sector, algorithm, observables)
     (beta === nothing) == (temperature === nothing) &&
         throw(ArgumentError("give exactly one of beta or temperature"))
@@ -25,7 +25,7 @@ function _converted(states::Matrix{UInt8}, steps::AbstractVector{<:Integer};
                             "source_path" => abspath(source), "source_sha256" => sha256_file(source))
     _is_path(lattice) && (prov["source_lattice"] = abspath(lattice))
     return validate(Ensemble(
-        model=String(model), site_type=String(site_type),
+        model=String(model), project=String(project), site_type=String(site_type),
         lattice=_lattice_text(lattice), lattice_name=_lattice_name(lattice, lattice_name),
         beta=Float64(beta === nothing ? 1 / temperature : beta),
         parameters=Dict{String,Float64}(String(k) => Float64(v) for (k, v) in parameters),

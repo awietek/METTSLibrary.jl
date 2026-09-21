@@ -9,7 +9,7 @@
 # ---------------------------------------------------------------------------
 
 """
-    from_samples_txt(path; lattice, model, site_type="tJ", beta=nothing, temperature=nothing,
+    from_samples_txt(path; lattice, model, project, site_type="tJ", beta=nothing, temperature=nothing,
                      basis="X", parameters=Dict(), sector=Dict(), algorithm=Dict(),
                      lattice_name=nothing, observables=Dict()) -> Ensemble
 
@@ -20,7 +20,8 @@ indices for `site_type` and are stored 0-based. The measurement index becomes
 for the path-based convenience wrapper.
 """
 function from_samples_txt(path::AbstractString;
-                          lattice::AbstractString, model::AbstractString, site_type::AbstractString="tJ",
+                          lattice::AbstractString, model::AbstractString, project::AbstractString,
+                          site_type::AbstractString="tJ",
                           beta=nothing, temperature=nothing, basis::AbstractString="X",
                           parameters=Dict{String,Float64}(), sector=Dict{String,Int}(),
                           algorithm=Dict{String,Any}(), lattice_name=nothing,
@@ -45,7 +46,7 @@ function from_samples_txt(path::AbstractString;
     end
     return _converted(states, steps;
         source=path, source_format="metts_jl_samples_txt", code="METTS.jl",
-        lattice, lattice_name, model, site_type, beta, temperature, basis,
+        lattice, lattice_name, model, project, site_type, beta, temperature, basis,
         parameters, sector, algorithm, observables)
 end
 
@@ -67,7 +68,7 @@ function parse_ttj_path(path::AbstractString)
 end
 
 """
-    from_ttj_run(dir; lattice=nothing, lattice_name=nothing, basis="X") -> Ensemble
+    from_ttj_run(dir; project, lattice=nothing, lattice_name=nothing, basis="X") -> Ensemble
 
 Convert one output directory of `examples/ttJ_metts.jl` (containing
 `samples.txt`) to an Ensemble, taking all parameters from the path. The
@@ -77,8 +78,8 @@ yperiodic=true)`, so unless a `lattice` is given one is generated with
 (HB, nearest neighbours) and `t_prime` (HOP, diagonals), named
 `square.L<L>.W<W>.cyl`. The run's seed is recorded in `algorithm`.
 """
-function from_ttj_run(dir::AbstractString; lattice=nothing, lattice_name=nothing,
-                      basis::AbstractString="X")
+function from_ttj_run(dir::AbstractString; project::AbstractString, lattice=nothing,
+                      lattice_name=nothing, basis::AbstractString="X")
     p = parse_ttj_path(abspath(dir))
     if lattice === nothing
         lattice = square_lattice_toml(p.L, p.W; yperiodic=true,
@@ -86,7 +87,7 @@ function from_ttj_run(dir::AbstractString; lattice=nothing, lattice_name=nothing
         lattice_name = something(lattice_name, "square.L$(p.L).W$(p.W).cyl")
     end
     return from_samples_txt(joinpath(dir, "samples.txt");
-        lattice, lattice_name, model="tJ", site_type="tJ", temperature=p.T, basis,
+        lattice, lattice_name, model="tJ", project, site_type="tJ", temperature=p.T, basis,
         parameters=Dict("t" => p.t, "t_prime" => p.t_prime, "J" => p.J),
         sector=Dict("n" => round(Int, p.filling * p.L * p.W)),
         algorithm=Dict{String,Any}("driver" => "examples/ttJ_metts.jl", "tau" => p.tau,

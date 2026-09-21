@@ -1,5 +1,5 @@
 const SCHEMA_NAME = "mettslibrary"
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 1
 
 """
 Ordered local basis labels per ITensors site type. The position in this
@@ -18,11 +18,19 @@ const LOCAL_STATES = Dict{String,Vector{String}}(
 
 One set of collapsed product states for one Hamiltonian, lattice, sector and
 temperature, with per-sample observables. Maps one-to-one onto a single HDF5
-file. Construct with keyword arguments. Required: `model`, `site_type`,
-`lattice`, `lattice_name`, `beta`, `states`; everything else has a default.
+file. Construct with keyword arguments. Required: `model`, `project`,
+`site_type`, `lattice`, `lattice_name`, `beta`, `states`; everything else has
+a default.
 
 Fields
 - `model`          : physical model name, e.g. "tJ", "Hubbard", "Heisenberg"
+- `project`        : the research project the runs belong to, e.g.
+                     "superconductors". A project is one researcher's body of
+                     work: it may span several lattices, and its directory
+                     `<model>/<project>/` carries a README.md saying who
+                     computed it, when, and which papers used it. Two projects
+                     may hold runs at identical parameters — they are different
+                     data, and separating them is the point.
 - `site_type`      : ITensors site type, e.g. "tJ", "Electron", "S=1/2"
 - `local_states`   : ordered local basis labels (see `LOCAL_STATES`)
 - `lattice`        : TOML text of the lattice file (Coordinates, Interactions);
@@ -44,6 +52,7 @@ Fields
 """
 Base.@kwdef struct Ensemble
     model::String
+    project::String
     site_type::String
     local_states::Vector{String} = LOCAL_STATES[site_type]
     lattice::String

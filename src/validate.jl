@@ -6,7 +6,7 @@ found. Checks:
 - the lattice text parses and has as many sites as `states`
 - every interaction refers to existing sites
 - every coupling named in the lattice has a value in `parameters`
-- `lattice_name` is usable as a directory name
+- `lattice_name` and `project` are usable as directory names
 - label tables are non-empty and short enough for UInt8 indices
 - every stored state and basis index refers to an existing label
 - basis, step and observables have matching sample counts
@@ -35,6 +35,8 @@ function validate(e::Ensemble)
     end
     (isempty(e.lattice_name) || occursin(r"[/\\\s]", e.lattice_name)) &&
         push!(errs, "lattice_name must be non-empty and contain no slashes or whitespace, got '$(e.lattice_name)'")
+    (isempty(e.project) || occursin(r"[/\\\s]", e.project)) &&
+        push!(errs, "project must be non-empty and contain no slashes or whitespace, got '$(e.project)'")
 
     isempty(e.local_states) && push!(errs, "local_states is empty")
     length(e.local_states) > 255 && push!(errs, "more than 255 local states")

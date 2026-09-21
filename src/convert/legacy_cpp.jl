@@ -27,7 +27,7 @@ const LEGACY_CPP_OBSERVABLES = Dict(
 )
 
 """
-    from_legacy_cpp(dump_h5; lattice, model, site_type, beta=nothing, temperature=nothing,
+    from_legacy_cpp(dump_h5; lattice, model, project, site_type, beta=nothing, temperature=nothing,
                     basis="Z", parameters=Dict(), sector=Dict(), algorithm=Dict(),
                     lattice_name=nothing) -> Ensemble
 
@@ -40,7 +40,8 @@ Every per-step scalar dataset is kept as an observable; known ones are
 renamed (see `LEGACY_CPP_OBSERVABLES`), others keep their lowercased name.
 """
 function from_legacy_cpp(dump_h5::AbstractString;
-                         lattice::AbstractString, model::AbstractString, site_type::AbstractString,
+                         lattice::AbstractString, model::AbstractString, project::AbstractString,
+                         site_type::AbstractString,
                          beta=nothing, temperature=nothing, basis::AbstractString="Z",
                          parameters=Dict{String,Float64}(), sector=Dict{String,Int}(),
                          algorithm=Dict{String,Any}(), lattice_name=nothing)
@@ -71,6 +72,6 @@ function from_legacy_cpp(dump_h5::AbstractString;
 
     return _converted(states, 1:size(states, 2);
         source=dump_h5, source_format="legacy_cpp_dump_h5", code="metts (C++)",
-        lattice, lattice_name, model, site_type, beta, temperature, basis,
+        lattice, lattice_name, model, project, site_type, beta, temperature, basis,
         parameters, sector, algorithm, observables=obs)
 end

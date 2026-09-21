@@ -11,7 +11,8 @@ function _index_entry(root::AbstractString, rel::AbstractString)
         "sha256" => sha256_file(path),
         "bytes"  => filesize(path),
     )
-    for k in ("model", "site_type", "nsites", "nsamples", "beta", "temperature", "collapse_bases",
+    for k in ("model", "project", "site_type", "nsites", "nsamples", "beta", "temperature",
+              "collapse_bases",
               "observables", "couplings", "lattice_name", "lattice_sha256")
         entry[k] = m[k]
     end

@@ -1,9 +1,5 @@
 # ---------------------------------------------------------------------------
-# HDF5 layout (schema version 2); see docs/src/schema.md
-#
-# Version 2 dropped /chain: one file is one METTS run, so it was a constant
-# column duplicating algorithm/seed. Files written by version 1 still read —
-# their /chain dataset is simply ignored.
+# HDF5 layout (schema version 1); see docs/src/schema.md
 #
 # /                          attributes: schema, schema_version, model, site_type,
 #                            local_states, nsites, nsamples, beta, collapse_bases,
@@ -103,6 +99,7 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
         a["schema"]         = SCHEMA_NAME
         a["schema_version"] = SCHEMA_VERSION
         a["model"]          = e.model
+        a["project"]        = e.project
         a["site_type"]      = e.site_type
         a["local_states"]   = e.local_states
         a["nsites"]         = N
@@ -139,8 +136,8 @@ function _check_schema(f, path)
     haskey(a, "schema") && read_attribute(f, "schema") == SCHEMA_NAME ||
         error("'$path' is not a $SCHEMA_NAME file (missing or wrong 'schema' attribute).")
     v = read_attribute(f, "schema_version")
-    v <= SCHEMA_VERSION ||
-        error("'$path' has schema version $v, this package understands up to $SCHEMA_VERSION.")
+    v == SCHEMA_VERSION ||
+        error("'$path' has schema version $v, this package writes and reads $SCHEMA_VERSION.")
     return v
 end
 
@@ -148,11 +145,9 @@ end
 function _read_header(f, path)
     _check_schema(f, path)
     d = Dict{String,Any}(k => read_attribute(f, k) for k in
-        ("model", "site_type", "local_states", "nsites", "nsamples", "beta", "collapse_bases",
-         "lattice_name", "lattice_sha256"))
-    # schema 2 files written before temperature was stored still read
-    d["temperature"] = haskey(attributes(f), "temperature") ?
-                       read_attribute(f, "temperature") : 1 / d["beta"]
+        ("model", "project", "site_type", "local_states", "nsites", "nsamples", "beta",
+         "collapse_bases", "lattice_name", "lattice_sha256"))
+    d["temperature"] = read_attribute(f, "temperature")
     d["parameters"]  = Dict{String,Float64}(k => Float64(v) for (k, v) in _read_attr_group(f, "parameters"))
     d["sector"]      = Dict{String,Int}(k => Int(v) for (k, v) in _read_attr_group(f, "sector"))
     d["algorithm"]   = _read_attr_group(f, "algorithm")
@@ -182,7 +177,8 @@ function read_ensemble(path::AbstractString)
         h = _read_header(f, path)
         obs = Dict{String,Array{Float64}}(k => Array{Float64}(read(f["observables"][k])) for k in h["observables"])
         validate(Ensemble(
-            model=h["model"], site_type=h["site_type"], local_states=Vector{String}(h["local_states"]),
+            model=h["model"], project=h["project"], site_type=h["site_type"],
+            local_states=Vector{String}(h["local_states"]),
             lattice=h["lattice"], lattice_name=h["lattice_name"], beta=Float64(h["beta"]),
             parameters=h["parameters"], sector=h["sector"], algorithm=h["algorithm"], provenance=h["provenance"],
             collapse_bases=Vector{String}(h["collapse_bases"]),
