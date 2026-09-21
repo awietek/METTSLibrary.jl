@@ -331,9 +331,26 @@ end
         mkpath(joinpath(root, ".git")); touch(joinpath(root, ".git", "x.h5"))
 
         idx = build_index(root)
-        @test isfile(joinpath(root, "index.toml"))
         @test length(idx["ensembles"]) == 3
-        parsed = TOML.parsefile(joinpath(root, "index.toml"))
+
+        # the root index is a manifest; the entries live per project
+        manifest = TOML.parsefile(joinpath(root, "index.toml"))
+        @test !haskey(manifest, "ensembles")
+        @test only(manifest["projects"])["project"] == "testproject"
+        @test only(manifest["projects"])["nfiles"] == 3
+        @test isfile(joinpath(root, "tJ", "testproject", "index.toml"))
+        pidx = TOML.parsefile(joinpath(root, "tJ", "testproject", "index.toml"))
+        @test length(pidx["ensembles"]) == 3
+        # each lattice is described once, not once per run that shares it
+        @test length(pidx["lattices"]) == 2
+        # and what the path already carries is not repeated in an entry
+        for k in ("model", "project", "lattice_name", "parameters", "sector",
+                  "temperature", "nsites", "couplings", "lattice", "provenance")
+            @test !haskey(pidx["ensembles"][1], k)
+        end
+
+        # load_index expands it back to the flat shape callers expect
+        parsed = load_index(source=root)
         @test length(parsed["ensembles"]) == 3
         first_entry = parsed["ensembles"][1]
         @test first_entry["couplings"] == ["t", "J", "t_prime"]

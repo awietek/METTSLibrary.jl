@@ -127,13 +127,14 @@ two runs of one ensemble produced the same tag, so add the parameter that
 actually differs between them.
 
 [`build_index`](@ref) walks the whole tree, reads each file's metadata and
-hash, and rewrites `index.toml`. It takes a few seconds per gigabyte.
+hash, and rewrites the root manifest plus one `index.toml` per project. It
+reads about 6 ms per file.
 
 ## Committing
 
 ```bash
 cd $METTSLIBRARY_PATH
-git add tJ/ index.toml
+git add tJ/ index.toml          # tJ/ includes the per-project indexes
 git commit -m "tJ W4 L32 t3 J0.4 tp-0.3 n0.875: beta 4 and 8, seeds 1-4"
 git push
 ```

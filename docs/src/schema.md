@@ -136,6 +136,36 @@ decoration: keys may contain `_` and values may be negative, so `t_prime=-0.3`
 is readable where `t_prime-0.3` is not. These names are for humans — the
 authoritative values are the `parameters` and `sector` attributes in the file.
 
-`index.toml` at the library root lists every ensemble with its path, SHA-256,
-size, metadata, and the root-relative path and hash of its lattice file. It
-is regenerated from the files by `build_index`.
+## The index
+
+The index is split per project and stores only what a path cannot express:
+
+```
+index.toml                        manifest: one entry per project
+<model>/<project>/index.toml      that project's lattices and ensembles
+```
+
+The root manifest names each project, its index, that index's hash, and how
+many files and samples it holds — enough to discover what exists, and small
+enough to fetch first. Each project index then has a `lattices` table (each
+lattice once, with its path, hash, site count and couplings) and an
+`ensembles` table whose entries carry `path`, `sha256`, `bytes`, `beta`,
+`nsamples`, `site_type`, `collapse_bases`, `observables` and `algorithm`.
+
+Everything else comes back from the path: `model`, `project`, `lattice_name`,
+`parameters` and `sector`. [`load_index`](@ref) expands entries into the flat
+shape, so [`ensembles`](@ref) and [`load`](@ref) are unaffected.
+
+`beta` is stored even though the temperature directory names it, because that
+directory rounds to six decimals and 1/T does not terminate for most
+temperatures. `provenance` is deliberately absent: it is per-run bookkeeping
+nobody queries, and it was two thirds of the index's size — read it from the
+file with [`read_ensemble`](@ref).
+
+Splitting matters at scale. A single flat index cost 1.8 kB per entry, so the
+full cluster archive of 35,218 runs would have been a ~63 MB text file
+rewritten in git on every ingest; split and slimmed it is ~600 B per entry,
+and a batch rewrites one project.
+
+Both are regenerated from the files by [`build_index`](@ref) and are never
+edited by hand.
