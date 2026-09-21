@@ -49,15 +49,54 @@ function parse_relpath(rel::AbstractString)
             tag        = replace(p[7], r"\.h5$" => ""))
 end
 
-# One index entry, expanded back to the flat shape callers expect.
-function _expand(entry::AbstractDict, lattices::AbstractDict)
-    q = parse_relpath(entry["path"])
+_scalars(d) = Dict{String,Any}(k => v for (k, v) in d if v isa Union{Real,AbstractString,Bool})
+
+# "1000" -> 1000, "0.2" -> 0.2, "X" -> "X"
+function _untag(s::AbstractString)
+    v = tryparse(Int, s);     v === nothing || return v
+    w = tryparse(Float64, s); w === nothing || return w
+    return String(s)
+end
+
+"The directory part below a project: <lattice>/<parameters>/<sector>/T=…_beta=…"
+function _parse_dir(dir::AbstractString)
+    p = splitpath(dir)
+    length(p) == 4 || error("'$dir' is not <lattice>/<parameters>/<sector>/T=<T>_beta=<beta>")
+    return (lattice_name = p[1],
+            parameters = Dict{String,Float64}(k => parse(Float64, v) for (k, v) in _kv_parse(p[2])),
+            sector     = Dict{String,Int}(k => parse(Int, v) for (k, v) in _kv_parse(p[3])))
+end
+
+# Expand one run of one ensemble back into the flat entry callers expect.
+function _expand_run(model, project, ens, run, defaults, lattices, tag_algorithm)
+    q   = _parse_dir(ens["dir"])
     lat = get(lattices, q.lattice_name, nothing)
-    out = Dict{String,Any}(entry)
-    out["model"], out["project"] = q.model, q.project
-    out["lattice_name"] = q.lattice_name
-    out["parameters"], out["sector"] = q.parameters, q.sector
-    out["temperature"] = 1 / entry["beta"]
+    alg = Dict{String,Any}(get(defaults, "algorithm", Dict{String,Any}()))
+    merge!(alg, get(run, "algorithm", Dict{String,Any}()))
+    # the fields the filename already carries come back from it
+    tagkv = Dict(_kv_parse(run["tag"]))
+    for k in tag_algorithm
+        haskey(tagkv, k) && (alg[k] = _untag(tagkv[k]))
+    end
+
+    out = Dict{String,Any}(
+        "path"        => joinpath(model, project, ens["dir"], run["tag"] * ".h5"),
+        "model"       => model,
+        "project"     => project,
+        "lattice_name"=> q.lattice_name,
+        "parameters"  => q.parameters,
+        "sector"      => q.sector,
+        "beta"        => ens["beta"],
+        "temperature" => 1 / ens["beta"],
+        "nsamples"    => run["nsamples"],
+        "bytes"       => run["bytes"],
+        "sha256"      => run["sha256"],
+        "algorithm"   => alg,
+    )
+    for k in ("site_type", "collapse_bases", "observables")
+        v = get(run, k, get(defaults, k, nothing))
+        v === nothing || (out[k] = v)
+    end
     if lat !== nothing
         out["nsites"]         = lat["nsites"]
         out["couplings"]      = lat["couplings"]
@@ -67,38 +106,107 @@ function _expand(entry::AbstractDict, lattices::AbstractDict)
     return out
 end
 
-_scalars(d) = Dict{String,Any}(k => v for (k, v) in d if v isa Union{Real,AbstractString,Bool})
-
-function _project_entry(root::AbstractString, rel::AbstractString, lattices::AbstractDict)
-    path = joinpath(root, rel)
-    is_lfs_pointer(path) &&
-        error("'$rel' is a Git LFS pointer, not content. Run `git lfs pull` before building the index.")
-    m = read_metadata(path)
-    name = m["lattice_name"]
-    if !haskey(lattices, name)
-        lp = lattice_path(path)
-        lattices[name] = Dict{String,Any}(
-            "name"      => name,
-            "path"      => relpath(lp, root),
-            "sha256"    => sha256_file(lp),
-            "nsites"    => m["nsites"],
-            "couplings" => m["couplings"],
-        )
+function _expand_project(pidx)
+    model, project = pidx["model"], pidx["project"]
+    defaults  = get(pidx, "defaults", Dict{String,Any}())
+    lattices  = Dict{String,Any}(l["name"] => l for l in get(pidx, "lattices", []))
+    tagalg    = get(pidx, "tag_algorithm", String[])
+    out = Dict{String,Any}[]
+    for ens in get(pidx, "ensembles", []), run in ens["runs"]
+        push!(out, _expand_run(model, project, ens, run, defaults, lattices, tagalg))
     end
-    return Dict{String,Any}(
-        "path"           => rel,
-        "sha256"         => sha256_file(path),
-        "bytes"          => filesize(path),
-        "beta"           => m["beta"],
-        "nsamples"       => m["nsamples"],
-        "site_type"      => m["site_type"],
-        "collapse_bases" => m["collapse_bases"],
-        "observables"    => m["observables"],
-        "algorithm"      => _scalars(m["algorithm"]),
-    )
+    return out
 end
 
 _stamp() = Dates.format(now(UTC), dateformat"yyyy-mm-ddTHH:MM:SS\Z")
+
+# Assemble one project's index: constants hoisted into `defaults`, runs grouped
+# under the ensemble directory they share, and anything the filename already
+# encodes left out.
+function _build_project(root, model, project, rels)
+    lattices = Dict{String,Any}()
+    raw = Tuple{String,String,Dict{String,Any}}[]     # dir, tag, facts
+    for rel in rels
+        path = joinpath(root, rel)
+        is_lfs_pointer(path) &&
+            error("'$rel' is a Git LFS pointer, not content. Run `git lfs pull` before building the index.")
+        m = read_metadata(path)
+        name = m["lattice_name"]
+        if !haskey(lattices, name)
+            lp = lattice_path(path)
+            lattices[name] = Dict{String,Any}(
+                "name" => name, "path" => relpath(lp, root), "sha256" => sha256_file(lp),
+                "nsites" => m["nsites"], "couplings" => m["couplings"])
+        end
+        p = splitpath(rel)
+        push!(raw, (joinpath(p[3:6]...), replace(p[7], r"\.h5$" => ""),
+                    Dict{String,Any}(
+                        "sha256" => sha256_file(path), "bytes" => filesize(path),
+                        "beta" => m["beta"], "nsamples" => m["nsamples"],
+                        "site_type" => m["site_type"], "collapse_bases" => m["collapse_bases"],
+                        "observables" => m["observables"],
+                        "algorithm" => _scalars(m["algorithm"]))))
+    end
+
+    # Which algorithm entries does the filename already carry? Drop exactly
+    # those, and only where the tag really spells the same value.
+    tagalg = Set{String}()
+    for (_, tag, f) in raw
+        tagkv = Dict(_kv_parse(tag))
+        for (k, v) in f["algorithm"]
+            haskey(tagkv, k) && _untag(tagkv[k]) == v && push!(tagalg, k)
+        end
+    end
+    for (_, _, f) in raw
+        f["algorithm"] = Dict{String,Any}(k => v for (k, v) in f["algorithm"] if !(k in tagalg))
+    end
+
+    # Fields with one value across the whole project belong in the header, not
+    # on every run. site_type, collapse_bases and observables are typically
+    # constant, and so are most of the algorithm's remaining entries.
+    defaults = Dict{String,Any}()
+    for k in ("site_type", "collapse_bases", "observables")
+        vs = unique(f[k] for (_, _, f) in raw)
+        length(vs) == 1 && (defaults[k] = only(vs); foreach(t -> delete!(t[3], k), raw))
+    end
+    algkeys = union((keys(f["algorithm"]) for (_, _, f) in raw)...)
+    dalg = Dict{String,Any}()
+    for k in algkeys
+        vs = unique(get(f["algorithm"], k, nothing) for (_, _, f) in raw)
+        length(vs) == 1 && only(vs) !== nothing || continue
+        dalg[k] = only(vs)
+        foreach(t -> delete!(t[3]["algorithm"], k), raw)
+    end
+    isempty(dalg) || (defaults["algorithm"] = dalg)
+
+    # Group the runs under the ensemble directory they share, so a ~110
+    # character path prefix is written once instead of once per chain.
+    order = String[]; byens = Dict{String,Vector{Any}}()
+    betas = Dict{String,Float64}()
+    for (dir, tag, f) in raw
+        haskey(byens, dir) || (push!(order, dir); byens[dir] = [])
+        betas[dir] = f["beta"]
+        run = Dict{String,Any}("tag" => tag, "nsamples" => f["nsamples"],
+                               "bytes" => f["bytes"], "sha256" => f["sha256"])
+        for k in ("site_type", "collapse_bases", "observables")
+            haskey(f, k) && (run[k] = f[k])          # only where it differs
+        end
+        isempty(f["algorithm"]) || (run["algorithm"] = f["algorithm"])
+        push!(byens[dir], run)
+    end
+
+    return Dict{String,Any}(
+        "schema_version" => SCHEMA_VERSION,
+        "generated"      => _stamp(),
+        "model"          => model,
+        "project"        => project,
+        "tag_algorithm"  => sort(collect(tagalg)),
+        "defaults"       => defaults,
+        "lattices"       => [lattices[k] for k in sort(collect(keys(lattices)))],
+        "ensembles"      => [Dict{String,Any}("dir" => d, "beta" => betas[d],
+                                              "runs" => byens[d]) for d in order],
+    )
+end
 
 function _toml_string(d)
     io = IOBuffer()
@@ -136,29 +244,22 @@ function build_index(root::AbstractString; write::Bool=true)
     projects = Dict{String,Any}[]
     flat     = Dict{String,Any}[]
     for (model, project) in sort(collect(keys(groups)))
-        lattices = Dict{String,Any}()
-        entries  = [_project_entry(root, rel, lattices) for rel in groups[(model, project)]]
-        pidx = Dict{String,Any}(
-            "schema_version" => SCHEMA_VERSION,
-            "generated"      => _stamp(),
-            "model"          => model,
-            "project"        => project,
-            "lattices"       => [lattices[k] for k in sort(collect(keys(lattices)))],
-            "ensembles"      => entries,
-        )
+        pidx = _build_project(root, model, project, groups[(model, project)])
         rel_idx = joinpath(model, project, INDEX_FILE)
         text    = _toml_string(pidx)
         write && Base.write(joinpath(root, rel_idx), text)
+        nfiles = sum(length(e["runs"]) for e in pidx["ensembles"]; init=0)
         push!(projects, Dict{String,Any}(
-            "model"    => model,
-            "project"  => project,
-            "index"    => rel_idx,
-            "sha256"   => sha256_string(text),
-            "nfiles"   => length(entries),
-            "nsamples" => sum(e["nsamples"] for e in entries; init=0),
-            "lattices" => sort(collect(keys(lattices))),
+            "model"     => model,
+            "project"   => project,
+            "index"     => rel_idx,
+            "sha256"    => sha256_string(text),
+            "nfiles"    => nfiles,
+            "nensembles"=> length(pidx["ensembles"]),
+            "nsamples"  => sum(r["nsamples"] for e in pidx["ensembles"] for r in e["runs"]; init=0),
+            "lattices"  => [l["name"] for l in pidx["lattices"]],
         ))
-        append!(flat, (_expand(e, lattices) for e in entries))
+        append!(flat, _expand_project(pidx))
     end
 
     manifest = Dict{String,Any}(
@@ -208,9 +309,7 @@ function load_index(; source=nothing)
 
     flat = Dict{String,Any}[]
     for p in get(manifest, "projects", Dict{String,Any}[])
-        pidx = _read_project_index(root, p["index"], p["sha256"])
-        lattices = Dict{String,Any}(l["name"] => l for l in get(pidx, "lattices", []))
-        append!(flat, (_expand(e, lattices) for e in get(pidx, "ensembles", [])))
+        append!(flat, _expand_project(_read_project_index(root, p["index"], p["sha256"])))
     end
     out = Dict{String,Any}(manifest)
     out["ensembles"] = flat

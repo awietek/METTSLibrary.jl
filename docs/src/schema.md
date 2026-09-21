@@ -146,26 +146,60 @@ index.toml                        manifest: one entry per project
 ```
 
 The root manifest names each project, its index, that index's hash, and how
-many files and samples it holds — enough to discover what exists, and small
-enough to fetch first. Each project index then has a `lattices` table (each
-lattice once, with its path, hash, site count and couplings) and an
-`ensembles` table whose entries carry `path`, `sha256`, `bytes`, `beta`,
-`nsamples`, `site_type`, `collapse_bases`, `observables` and `algorithm`.
+many ensembles, files and samples it holds — enough to see what exists, and
+small enough to fetch first.
 
-Everything else comes back from the path: `model`, `project`, `lattice_name`,
-`parameters` and `sector`. [`load_index`](@ref) expands entries into the flat
-shape, so [`ensembles`](@ref) and [`load`](@ref) are unaffected.
+A project index has three parts. `defaults` holds every field with one value
+across the project — typically `site_type`, `collapse_bases`, `observables`
+and most of `algorithm` — written once instead of on every run. `lattices`
+describes each lattice once, with its path, hash, site count and couplings.
+`ensembles` groups the runs under the directory they share:
 
-`beta` is stored even though the temperature directory names it, because that
-directory rounds to six decimals and 1/T does not terminate for most
-temperatures. `provenance` is deliberately absent: it is per-run bookkeeping
-nobody queries, and it was two thirds of the index's size — read it from the
-file with [`read_ensemble`](@ref).
+```toml
+tag_algorithm = ["cutoff", "maxdim", "seed", "tau"]
 
-Splitting matters at scale. A single flat index cost 1.8 kB per entry, so the
-full cluster archive of 35,218 runs would have been a ~63 MB text file
-rewritten in git on every ingest; split and slimmed it is ~600 B per entry,
-and a batch rewrites one project.
+[defaults]
+collapse_bases = ["X"]
+observables = ["energy", "entropy", "maxdim", "n", "n2", "sz", "sz2"]
+site_type = "tJ"
 
-Both are regenerated from the files by [`build_index`](@ref) and are never
-edited by hand.
+    [defaults.algorithm]
+    code = "metts (C++)"
+    init_tau = 0.1
+    k = 3
+
+[[ensembles]]
+beta = 80.0
+dir = "square.L32.W4.cyl/J=0.4_t=3.0/n=128/T=00000.012500_beta=00080.000000"
+
+    [[ensembles.runs]]
+    tag = "basis=X_maxdim=1000_tau=0.2_cutoff=1.0e-6_seed=1"
+    nsamples = 22
+    bytes = 22347
+    sha256 = "da861c90…"
+```
+
+So a run costs a tag, a sample count, a size and a hash. Everything else is
+reconstructed: `model`, `project`, `lattice_name`, `parameters` and `sector`
+from the path; `maxdim`, `tau`, `cutoff` and `seed` from the tag (the fields
+listed in `tag_algorithm`, dropped only where the tag spells the same value);
+the rest from `defaults` and `lattices`. A run carries a field explicitly only
+when it differs from the project default. [`load_index`](@ref) expands all of
+it, so [`ensembles`](@ref) and [`load`](@ref) see the same flat entries as
+before.
+
+What is kept is what a path cannot say. `nsamples` is the point of the index:
+chain lengths vary enormously — in `tj.mixed.dimension` the lowest temperature
+has a median of 13 samples per run against 541 at the highest — and that is
+exactly what decides whether an ensemble is usable. `beta` is stored because
+the temperature directory rounds to six decimals. `provenance` is deliberately
+absent: per-run bookkeeping nobody queries, and it was two thirds of the size
+— read it from the file with [`read_ensemble`](@ref).
+
+This matters at scale. Flat and unslimmed, the index cost 1.8 kB per entry, so
+the full cluster archive of 35,218 runs would have been a ~63 MB text file
+rewritten in git on every ingest. Now it is ~230 B per entry — about 8 MB for
+the whole archive, and an ingest rewrites one project.
+
+All of it is regenerated from the files by [`build_index`](@ref), never edited
+by hand.
