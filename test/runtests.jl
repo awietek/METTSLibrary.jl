@@ -192,11 +192,14 @@ end
     # write_ensemble and relpath_for default to it
     @test ML.relpath_for(ea) == ML.relpath_for(ea; tag=default_tag(ea))
     @test ML.unflatten_path(ML.flatten_path(rel)) == rel
-    # the lattice is found by position: <lattice>/<params>/<sector>/<T>/<tag>.h5
+    # model, project and lattice are found by position, not stored in the file:
+    # <model>/<project>/<lattice>/<params>/<sector>/<T>/<tag>.h5
     @test ML.lattice_dir("/lib/tJ/proj/sq/par/sec/T/b.h5") == "/lib/tJ/proj/sq"
     @test ML.lattice_name_of("/lib/tJ/proj/sq/par/sec/T/b.h5") == "sq"
-    # and it agrees with what relpath_for builds
-    @test ML.lattice_name_of(joinpath("/lib", ML.relpath_for(e; tag="x"))) == e.lattice_name
+    @test ML.layout_names("/lib/tJ/proj/sq/par/sec/T/b.h5") == ("tJ", "proj", "sq")
+    # and they round-trip with what relpath_for builds
+    @test ML.layout_names(joinpath("/lib", ML.relpath_for(e; tag="x"))) ==
+          (e.model, e.project, e.lattice_name)
 end
 
 @testset "write, read, lattice sharing" begin
@@ -228,7 +231,15 @@ end
             @test read(f["coordinates"])[:, 2] == [0.0, 1.0]
             # one file is one run, so the seed lives in /algorithm, not a column
             @test !haskey(f, "chain")
-            @test read_attribute(f, "project") == e.project
+            # names the path already carries are not duplicated inside the file
+            ks = keys(attributes(f))
+            for k in ("model", "project", "lattice_name", "lattice_sha256")
+                @test !(k in ks)
+            end
+            # what IS stored is what the bytes cannot be read without
+            for k in ("site_type", "local_states", "beta", "temperature", "collapse_bases")
+                @test k in ks
+            end
         end
 
         m = ML.read_metadata(path)
@@ -274,6 +285,19 @@ end
         write(latf4, e.lattice)
         @test read_ensemble(joinpath(root, rel4)) isa Ensemble
         rm(latf4); mv(latf4 * ".bak", latf4)
+
+        # Renaming a model, project or lattice is a mv: nothing inside a file
+        # names them, so no file is rewritten and nothing can go stale.
+        mv(joinpath(root, "tJ", "testproject"), joinpath(root, "tJ", "renamed.project"))
+        moved = joinpath(root, "tJ", "renamed.project", splitpath(rel)[3:end]...)
+        @test isfile(moved)
+        r = read_ensemble(moved)
+        @test r.project == "renamed.project"
+        @test r.model == "tJ" && r.lattice_name == e.lattice_name
+        @test r.states == e.states && r.beta == e.beta
+        idx2 = build_index(root; write=false)
+        @test all(x["project"] == "renamed.project" for x in idx2["ensembles"])
+        mv(joinpath(root, "tJ", "renamed.project"), joinpath(root, "tJ", "testproject"))
     end
 end
 

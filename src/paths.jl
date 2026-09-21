@@ -139,6 +139,25 @@ end
 "Name of the lattice of the ensemble at `h5path`, i.e. its directory's name."
 lattice_name_of(h5path::AbstractString) = basename(lattice_dir(h5path))
 
+"""
+    layout_names(h5path) -> (model, project, lattice_name)
+
+The three names `relpath_for` encodes in the path, read back from it:
+`<model>/<project>/<lattice_name>/…`. All three are authoritative — none is
+stored in the ensemble file.
+
+They are names, not data: they say where a file belongs, and nothing in them
+is needed to interpret its contents (that is `site_type`, `local_states`, the
+lattice, `parameters`, `sector` and `beta`, all of which *are* stored). Keeping
+them out of the file means renaming a model, a project or a lattice is a `mv`
+plus `build_index`, and that no stored copy can drift from the directory.
+"""
+function layout_names(h5path::AbstractString)
+    lat  = lattice_dir(h5path)
+    proj = dirname(lat)
+    return (basename(dirname(proj)), basename(proj), basename(lat))
+end
+
 # Zenodo stores files flat; a path is flattened by replacing separators.
 const _FLAT_SEP = "__"
 flatten_path(rel::AbstractString) = replace(rel, "/" => _FLAT_SEP)

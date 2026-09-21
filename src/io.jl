@@ -1,9 +1,11 @@
 # ---------------------------------------------------------------------------
 # HDF5 layout (schema version 1); see docs/src/schema.md
 #
-# /                          attributes: schema, schema_version, model, project,
-#                            site_type, local_states, nsites, nsamples, beta,
-#                            temperature, collapse_bases
+# /                          attributes: schema, schema_version, site_type,
+#                            local_states, nsites, nsamples, beta, temperature,
+#                            collapse_bases
+#                            (model, project and lattice_name are NOT stored:
+#                            they are names the path carries, see layout_names)
 # <lattice_name>.toml        the lattice file, the single .toml in the lattice
 #                            directory four levels above this file, shared by
 #                            every ensemble below it. The lattice's name and
@@ -105,8 +107,10 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString=d
         a = attributes(f)
         a["schema"]         = SCHEMA_NAME
         a["schema_version"] = SCHEMA_VERSION
-        a["model"]          = e.model
-        a["project"]        = e.project
+        # model and project are NOT stored, for the same reason as lattice_name:
+        # they are names the path already carries, they are not needed to
+        # interpret a single byte of the data, and a stored copy could only
+        # drift from the directory it sits in. Derived on read by layout_names.
         a["site_type"]      = e.site_type
         a["local_states"]   = e.local_states
         a["nsites"]         = N
@@ -150,12 +154,11 @@ function _check_schema(f, path)
     return v
 end
 
-# Everything except the sample arrays, including the verified lattice text.
+# Everything except the sample arrays, including the lattice text.
 function _read_header(f, path)
     _check_schema(f, path)
     d = Dict{String,Any}(k => read_attribute(f, k) for k in
-        ("model", "project", "site_type", "local_states", "nsites", "nsamples", "beta",
-         "collapse_bases"))
+        ("site_type", "local_states", "nsites", "nsamples", "beta", "collapse_bases"))
     d["temperature"] = read_attribute(f, "temperature")
     d["parameters"]  = Dict{String,Float64}(k => Float64(v) for (k, v) in _read_attr_group(f, "parameters"))
     d["sector"]      = Dict{String,Int}(k => Int(v) for (k, v) in _read_attr_group(f, "sector"))
@@ -167,9 +170,9 @@ function _read_header(f, path)
     # anything stored in it, so neither can go stale when a lattice is renamed.
     # Whether the lattice belongs to the data is settled by validate.
     lp = lattice_path(path)
-    d["lattice_name"] = lattice_name_of(path)
-    d["lattice"]      = read(lp, String)
-    d["couplings"]    = lattice_couplings(d["lattice"])
+    d["model"], d["project"], d["lattice_name"] = layout_names(path)
+    d["lattice"]   = read(lp, String)
+    d["couplings"] = lattice_couplings(d["lattice"])
     return d
 end
 
