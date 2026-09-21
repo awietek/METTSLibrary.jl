@@ -13,15 +13,28 @@
 # method, not physics -- the algorithm parameters that were varied. See
 # TAG_FIELDS and default_tag below.
 
-_fmt(x::Real) = x isa Integer ? string(x) : string(Float64(x))
+# name=value path components, and their inverse. "J=0.4_t=3.0_t_prime=-0.3"
+# from the couplings, "n=180" from the sector, and the same spelling for the
+# tag. The `=` matters: keys may contain `_` themselves and values may be
+# negative, so gluing them together (`t_prime-0.3`) could be read back neither
+# by eye nor by _kv_parse.
+#
+# The writer and the reader live here side by side on purpose: the path is the
+# authoritative record of a file's model, project, lattice, couplings and
+# sector, so these two must stay exact inverses.
+_fmt(x::Integer) = string(x)
+_fmt(x::Real)    = string(Float64(x))
+_fmt(x)          = string(x)
 
-# "J=0.4_t=3.0_t_prime=-0.3" from the couplings, "n=180" from the sector.
-# The `=` matters: keys may contain `_` themselves and values may be negative,
-# so gluing them together (`t_prime-0.3`) cannot be read back by eye.
 _kv_dir(d) = join(["$k=$(_fmt(v))" for (k, v) in sort(collect(d))], "_")
+_kv_dir_or(d, default::AbstractString) = (s = _kv_dir(d); isempty(s) ? default : s)
 
-_parameter_dir(e::Ensemble) = (s = _kv_dir(e.parameters); isempty(s) ? "default" : s)
-_sector_dir(e::Ensemble)    = (s = _kv_dir(e.sector);     isempty(s) ? "default" : s)
+# Split on the "_" that precedes the next "<name>=", never on every "_", so a
+# key like t_prime survives and a value may be negative or non-numeric.
+const _KV_RE = r"([A-Za-z][A-Za-z0-9_]*)=(.*?)(?=_[A-Za-z][A-Za-z0-9_]*=|$)"
+
+_kv_parse(s::AbstractString) = s == "default" ? Pair{String,String}[] :
+    [String(m.captures[1]) => String(m.captures[2]) for m in eachmatch(_KV_RE, s)]
 # Both temperature and inverse temperature, because both get read: T is the
 # value runs are specified with, beta is what the file stores.
 #
@@ -49,10 +62,6 @@ at the first duplicate rather than silently overwriting.
 """
 const TAG_FIELDS = ["basis", "maxdim", "tau", "cutoff", "seed"]
 
-_tagval(x::Integer) = string(x)
-_tagval(x::Real)    = string(Float64(x))
-_tagval(x)          = string(x)
-
 """
     default_tag(e::Ensemble; fields=TAG_FIELDS) -> String
 
@@ -71,7 +80,7 @@ function default_tag(e::Ensemble; fields=TAG_FIELDS)
         k = String(f)
         v = k == "basis" ? join(e.collapse_bases) : get(e.algorithm, k, nothing)
         v === nothing && continue
-        push!(parts, string(k, "=", _tagval(v)))
+        push!(parts, string(k, "=", _fmt(v)))
     end
     isempty(parts) && throw(ArgumentError(
         "cannot build a tag: the ensemble records none of $(join(fields, ", ")). " *
@@ -92,12 +101,16 @@ and both are indexed. `tag` must identify the run within its ensemble; by
 default it is `default_tag(e)`.
 """
 function relpath_for(e::Ensemble; tag::AbstractString=default_tag(e))
-    isempty(tag) && throw(ArgumentError("tag must not be empty"))
-    occursin(r"[/\\\s]", tag) && throw(ArgumentError("tag must not contain slashes or whitespace"))
-    isempty(e.project) && throw(ArgumentError("project must not be empty"))
-    occursin(r"[/\\\s]", e.project) &&
-        throw(ArgumentError("project must not contain slashes or whitespace, got '$(e.project)'"))
-    return joinpath(e.model, e.project, e.lattice_name, _parameter_dir(e), _sector_dir(e),
+    # All four become single path components, and model, project and
+    # lattice_name are read back out of the path, so a slash in any of them
+    # would silently change what the file claims to be.
+    for (what, s) in ("model" => e.model, "project" => e.project,
+                      "lattice_name" => e.lattice_name, "tag" => tag)
+        (isempty(s) || occursin(r"[/\\\s]", s)) && throw(ArgumentError(
+            "$what must be non-empty and contain no slashes or whitespace, got '$s'"))
+    end
+    return joinpath(e.model, e.project, e.lattice_name,
+                    _kv_dir_or(e.parameters, "default"), _kv_dir_or(e.sector, "default"),
                     _beta_dir(e), tag * ".h5")
 end
 
@@ -136,9 +149,6 @@ function lattice_path(h5path::AbstractString)
     return joinpath(dir, tomls[1])
 end
 
-"Name of the lattice of the ensemble at `h5path`, i.e. its directory's name."
-lattice_name_of(h5path::AbstractString) = basename(lattice_dir(h5path))
-
 """
     layout_names(h5path) -> (model, project, lattice_name)
 
@@ -157,8 +167,3 @@ function layout_names(h5path::AbstractString)
     proj = dirname(lat)
     return (basename(dirname(proj)), basename(proj), basename(lat))
 end
-
-# Zenodo stores files flat; a path is flattened by replacing separators.
-const _FLAT_SEP = "__"
-flatten_path(rel::AbstractString) = replace(rel, "/" => _FLAT_SEP)
-unflatten_path(name::AbstractString) = replace(name, _FLAT_SEP => "/")

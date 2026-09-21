@@ -195,8 +195,16 @@ end
     # model, project and lattice are found by position, not stored in the file:
     # <model>/<project>/<lattice>/<params>/<sector>/<T>/<tag>.h5
     @test ML.lattice_dir("/lib/tJ/proj/sq/par/sec/T/b.h5") == "/lib/tJ/proj/sq"
-    @test ML.lattice_name_of("/lib/tJ/proj/sq/par/sec/T/b.h5") == "sq"
     @test ML.layout_names("/lib/tJ/proj/sq/par/sec/T/b.h5") == ("tJ", "proj", "sq")
+    # a slash in any of the three would silently change what the file claims
+    for bad in (with(e; model="a/b"), with(e; project="a b"), with(e; lattice_name="a/b"))
+        @test_throws ArgumentError ML.relpath_for(bad; tag="x")
+        @test_throws ArgumentError validate(bad)
+    end
+    # the name=value codec round-trips, including keys with _ and negative values
+    @test ML._kv_parse(ML._kv_dir(Dict("t_prime" => -0.3, "J" => 0.4))) ==
+          ["J" => "0.4", "t_prime" => "-0.3"]
+    @test ML._kv_parse("default") == Pair{String,String}[]
     # and they round-trip with what relpath_for builds
     @test ML.layout_names(joinpath("/lib", ML.relpath_for(e; tag="x"))) ==
           (e.model, e.project, e.lattice_name)

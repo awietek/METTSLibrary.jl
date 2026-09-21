@@ -23,32 +23,6 @@ const INDEX_FILE = "index.toml"
 # `load_index` expands entries back into the full shape, so `ensembles` and
 # `load` see exactly what they saw when the index was one flat file.
 
-# name=value pairs out of a directory or tag component. Keys may contain "_"
-# and values may be negative or non-numeric, so pairs are split on the "_"
-# that precedes the next "<name>=" rather than on every "_".
-const _KV_RE = r"([A-Za-z][A-Za-z0-9_]*)=(.*?)(?=_[A-Za-z][A-Za-z0-9_]*=|$)"
-
-function _kv_parse(s::AbstractString)
-    s == "default" && return Pair{String,String}[]
-    return [String(m.captures[1]) => String(m.captures[2]) for m in eachmatch(_KV_RE, s)]
-end
-
-"""
-    parse_relpath(rel) -> NamedTuple
-
-Recover from a library-relative ensemble path everything the layout encodes:
-`model`, `project`, `lattice_name`, `parameters`, `sector` and `tag`.
-"""
-function parse_relpath(rel::AbstractString)
-    p = splitpath(rel)
-    length(p) == 7 || error("'$rel' is not <model>/<project>/<lattice>/<parameters>/" *
-                            "<sector>/T=<T>_beta=<beta>/<tag>.h5")
-    return (model = p[1], project = p[2], lattice_name = p[3],
-            parameters = Dict{String,Float64}(k => parse(Float64, v) for (k, v) in _kv_parse(p[4])),
-            sector     = Dict{String,Int}(k => parse(Int, v) for (k, v) in _kv_parse(p[5])),
-            tag        = replace(p[7], r"\.h5$" => ""))
-end
-
 _scalars(d) = Dict{String,Any}(k => v for (k, v) in d if v isa Union{Real,AbstractString,Bool})
 
 # "1000" -> 1000, "0.2" -> 0.2, "X" -> "X"
@@ -237,8 +211,11 @@ function build_index(root::AbstractString; write::Bool=true)
 
     groups = Dict{Tuple{String,String},Vector{String}}()
     for rel in rels
-        q = parse_relpath(rel)
-        push!(get!(groups, (q.model, q.project), String[]), rel)
+        length(splitpath(rel)) == 7 ||
+            error("'$rel' is not <model>/<project>/<lattice>/<parameters>/<sector>/" *
+                  "T=<T>_beta=<beta>/<tag>.h5")
+        model, project, _ = layout_names(rel)
+        push!(get!(groups, (model, project), String[]), rel)
     end
 
     projects = Dict{String,Any}[]
@@ -307,8 +284,17 @@ function load_index(; source=nothing)
         manifest = TOML.parsefile(source)
     end
 
+    # A library index is a manifest naming per-project indexes. A Zenodo record
+    # instead carries one flat index of already-expanded entries, because a
+    # record is a bag of flattened filenames with no directory tree for paths
+    # to be read back from. Both are first-class, so dispatch on the shape.
+    haskey(manifest, "projects") || haskey(manifest, "ensembles") ||
+        error("'$(something(source, INDEX_FILE))' is neither a library manifest " *
+              "(with `projects`) nor a flat snapshot index (with `ensembles`)")
+    haskey(manifest, "projects") || return manifest
+
     flat = Dict{String,Any}[]
-    for p in get(manifest, "projects", Dict{String,Any}[])
+    for p in manifest["projects"]
         append!(flat, _expand_project(_read_project_index(root, p["index"], p["sha256"])))
     end
     out = Dict{String,Any}(manifest)

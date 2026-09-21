@@ -5,6 +5,12 @@
 # (`ZENODO_SANDBOX_TOKEN` for the sandbox) unless passed explicitly.
 # ---------------------------------------------------------------------------
 
+# Zenodo stores a record's files flat, so a library path becomes one name.
+# This is the only place in the library that needs it.
+const _FLAT_SEP = "__"
+flatten_path(rel::AbstractString) = replace(rel, "/" => _FLAT_SEP)
+unflatten_path(name::AbstractString) = replace(name, _FLAT_SEP => "/")
+
 zenodo_api(sandbox::Bool) = sandbox ? "https://sandbox.zenodo.org/api" : "https://zenodo.org/api"
 
 function zenodo_token(sandbox::Bool)
@@ -75,6 +81,10 @@ function publish_zenodo(relpaths::AbstractVector{<:AbstractString}, root::Abstra
     lattices = unique([e["lattice"] for e in subset])
     uploads = vcat(collect(relpaths), lattices)
     length(uploads) + 1 <= 100 || error("Zenodo allows at most 100 files per record ($(length(uploads)) + index requested)")
+    # A record is a flat bag of files, so it carries a flat index: the expanded
+    # entries for just this subset. `load_index` accepts that shape as well as
+    # the library's manifest-plus-per-project one, and it has to -- a record has
+    # no directory tree for paths to be reconstructed from.
     tmpdir = mktempdir()
     idxfile = joinpath(tmpdir, INDEX_FILE)
     open(idxfile, "w") do io

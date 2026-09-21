@@ -6,7 +6,7 @@ found. Checks:
 - the lattice text parses and has as many sites as `states`
 - every interaction refers to existing sites
 - every coupling named in the lattice has a value in `parameters`
-- `lattice_name` and `project` are usable as directory names
+- `model`, `project` and `lattice_name` are usable as directory names
 - label tables are non-empty and short enough for UInt8 indices
 - every stored state and basis index refers to an existing label
 - basis, step and observables have matching sample counts
@@ -33,10 +33,14 @@ function validate(e::Ensemble)
         isempty(missing) ||
             push!(errs, "lattice couplings without a value in parameters: $(join(missing, ", "))")
     end
-    (isempty(e.lattice_name) || occursin(r"[/\\\s]", e.lattice_name)) &&
-        push!(errs, "lattice_name must be non-empty and contain no slashes or whitespace, got '$(e.lattice_name)'")
-    (isempty(e.project) || occursin(r"[/\\\s]", e.project)) &&
-        push!(errs, "project must be non-empty and contain no slashes or whitespace, got '$(e.project)'")
+    # model, project and lattice_name each become one path component and are
+    # read back out of the path, so a slash or a space in any of them would
+    # change what the written file claims to be.
+    for (what, s) in ("model" => e.model, "project" => e.project,
+                      "lattice_name" => e.lattice_name)
+        (isempty(s) || occursin(r"[/\\\s]", s)) &&
+            push!(errs, "$what must be non-empty and contain no slashes or whitespace, got '$s'")
+    end
 
     isempty(e.local_states) && push!(errs, "local_states is empty")
     length(e.local_states) > 255 && push!(errs, "more than 255 local states")

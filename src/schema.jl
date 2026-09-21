@@ -22,6 +22,13 @@ file. Construct with keyword arguments. Required: `model`, `project`,
 `site_type`, `lattice`, `lattice_name`, `beta`, `states`; everything else has
 a default.
 
+`model`, `project` and `lattice_name` are **names**: they place the file in the
+library and are needed to interpret nothing in it. They are not written into
+the HDF5 — `write_ensemble` turns them into the path and `read_ensemble` reads
+them back off it (`layout_names`), so renaming any of the three is a `mv` plus
+`build_index` rather than a rewrite of every file. Everything else here is
+data and is stored.
+
 Fields
 - `model`          : physical model name, e.g. "tJ", "Hubbard", "Heisenberg"
 - `project`        : the research project the runs belong to, e.g.
@@ -37,8 +44,10 @@ Fields
                      see `read_lattice`, `square_lattice_toml`. The lattice defines
                      the geometry, boundary conditions and site ordering.
 - `lattice_name`   : short name of the lattice, e.g. "shastry.16.HB.J.Jd.fsl" or
-                     "square.L32.W4.cyl". Names the lattice directory in the
-                     library, which holds the lattice file `<lattice_name>.toml`.
+                     "square.L32.W4.cyl". Names the lattice directory, which
+                     holds the one lattice file shared by everything below it.
+                     Choose it to identify the lattice completely, including
+                     size and boundary conditions: nothing else records them.
 - `beta`           : inverse temperature of the ensemble
 - `parameters`     : coupling values; must cover every coupling named in `lattice`
 - `sector`         : conserved quantum numbers, e.g. "nup" => 56, "ndn" => 56
