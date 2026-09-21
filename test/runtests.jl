@@ -192,7 +192,11 @@ end
     # write_ensemble and relpath_for default to it
     @test ML.relpath_for(ea) == ML.relpath_for(ea; tag=default_tag(ea))
     @test ML.unflatten_path(ML.flatten_path(rel)) == rel
-    @test ML.lattice_path("/lib/tJ/sq/p/b.h5", "sq") == "/lib/tJ/sq/sq.toml"
+    # the lattice is found by position: <lattice>/<params>/<sector>/<T>/<tag>.h5
+    @test ML.lattice_dir("/lib/tJ/proj/sq/par/sec/T/b.h5") == "/lib/tJ/proj/sq"
+    @test ML.lattice_name_of("/lib/tJ/proj/sq/par/sec/T/b.h5") == "sq"
+    # and it agrees with what relpath_for builds
+    @test ML.lattice_name_of(joinpath("/lib", ML.relpath_for(e; tag="x"))) == e.lattice_name
 end
 
 @testset "write, read, lattice sharing" begin
@@ -249,12 +253,27 @@ end
         latf4 = joinpath(root, "tJ", "testproject", "square.L4.W2.open", "square.L4.W2.open.toml")
         @test isfile(latf4)
         @test read_ensemble(joinpath(root, rel4)).lattice_name == "square.L4.W2.open"
-        # missing or modified lattice file is detected on read
+        # a missing lattice file is detected on read
         mv(latf4, latf4 * ".bak")
         @test_throws ErrorException read_ensemble(joinpath(root, rel4))
-        write(latf4, e.lattice)
-        @test_throws ErrorException read_ensemble(joinpath(root, rel4))
         @test_throws ErrorException ML.read_metadata(joinpath(root, rel4))
+        # so is a second one: a lattice directory holds exactly one lattice
+        write(latf4, e.lattice)
+        write(joinpath(dirname(latf4), "extra.toml"), e.lattice)
+        @test_throws ErrorException read_ensemble(joinpath(root, rel4))
+        rm(joinpath(dirname(latf4), "extra.toml"))
+        # a lattice that does not fit the data is caught by validate rather than
+        # by a checksum: wrong site count here
+        write(latf4, square_lattice_toml(6, 2; yperiodic=true, bonds=TJ_BONDS))
+        @test_throws ArgumentError read_ensemble(joinpath(root, rel4))
+        # A same-shape substitution is NOT detected, and that is the deliberate
+        # cost of locating the lattice by position instead of pinning it with a
+        # hash: this file has the same 8 sites and the same coupling names, only
+        # different bonds. Paying it is what makes renaming a lattice a mv
+        # rather than a rewrite of every file that references it.
+        write(latf4, e.lattice)
+        @test read_ensemble(joinpath(root, rel4)) isa Ensemble
+        rm(latf4); mv(latf4 * ".bak", latf4)
     end
 end
 

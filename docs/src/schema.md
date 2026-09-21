@@ -22,8 +22,14 @@ samples for the same parameters go into a new file distinguished by its tag.
 | `nsamples`       | int             | number of samples `M` |
 | `beta`           | float           | inverse temperature |
 | `collapse_bases` | string array    | labels of the collapse bases used, e.g. `["Z"]` or `["Z","X"]` |
-| `lattice_name`   | string          | name of the lattice, e.g. `"shastry.16.HB.J.Jd.fsl"`; the lattice file is `../<lattice_name>.toml` relative to this file |
-| `lattice_sha256` | string          | SHA-256 of that file, so a modified lattice is detected |
+
+The lattice's **name and checksum are deliberately not stored**. The lattice is
+the single `.toml` in the lattice directory, four levels above the file, and
+its name is that directory's name. Finding it by position rather than by a
+stored name is what makes renaming a lattice a `mv` plus `build_index`, instead
+of a rewrite of every file that references it. Whether the lattice belongs to
+the data is settled by [`validate`](@ref) — site count, couplings covered by
+`parameters`, and that it parses at all — rather than by a checksum.
 
 ## Datasets
 

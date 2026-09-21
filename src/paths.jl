@@ -102,24 +102,42 @@ function relpath_for(e::Ensemble; tag::AbstractString=default_tag(e))
 end
 
 """
-    lattice_path(h5path, lattice_name) -> String
+    lattice_dir(h5path) -> String
 
-Absolute path of the lattice file belonging to the HDF5 file at `h5path`. The
-lattice lives at `<model>/<lattice_name>/<lattice_name>.toml`, so this walks up
-from the file until it finds the directory named `lattice_name`. Walking rather
-than counting levels keeps it correct if the depth below the lattice changes.
+Directory holding the lattice of the ensemble file at `h5path`. `relpath_for`
+puts exactly `<parameters>/<sector>/T=<T>_beta=<beta>` between the lattice
+directory and the file, so the lattice directory is four levels up. This is
+positional on purpose: the lattice is found by *where it is*, never by a name
+stored inside the file, so renaming a lattice is a `mv` and not a rewrite of
+every file that uses it.
 """
-function lattice_path(h5path::AbstractString, lattice_name::AbstractString)
-    dir = dirname(abspath(h5path))
-    while true
-        basename(dir) == lattice_name && return joinpath(dir, lattice_name * ".toml")
-        parent = dirname(dir)
-        parent == dir && break
-        dir = parent
-    end
-    error("no directory named '$lattice_name' above '$h5path'; the lattice file " *
-          "belongs at <model>/<lattice_name>/<lattice_name>.toml")
+lattice_dir(h5path::AbstractString) = dirname(dirname(dirname(dirname(abspath(h5path)))))
+
+"""
+    lattice_path(h5path) -> String
+
+The lattice file of the ensemble at `h5path`: the single `.toml` in its
+`lattice_dir`. A lattice directory holds exactly one lattice, so there is
+nothing to disambiguate and no name to match.
+
+The file is not checksummed against the ensemble. A lattice that does not
+belong to the data fails `validate` instead — on site count, on couplings the
+parameters do not cover, or on failing to parse — which catches the mistakes
+that actually happen. Only an edit preserving site count and coupling names
+would slip through, and the lattice is append-only like everything else.
+"""
+function lattice_path(h5path::AbstractString)
+    dir = lattice_dir(h5path)
+    isdir(dir) || error("no lattice directory above '$h5path' (looked at '$dir')")
+    tomls = filter(f -> endswith(f, ".toml"), readdir(dir))
+    length(tomls) == 1 ||
+        error("expected exactly one .toml in the lattice directory '$dir', found " *
+              (isempty(tomls) ? "none" : join(tomls, ", ")))
+    return joinpath(dir, tomls[1])
 end
+
+"Name of the lattice of the ensemble at `h5path`, i.e. its directory's name."
+lattice_name_of(h5path::AbstractString) = basename(lattice_dir(h5path))
 
 # Zenodo stores files flat; a path is flattened by replacing separators.
 const _FLAT_SEP = "__"

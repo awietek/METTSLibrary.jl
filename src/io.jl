@@ -1,11 +1,15 @@
 # ---------------------------------------------------------------------------
 # HDF5 layout (schema version 1); see docs/src/schema.md
 #
-# /                          attributes: schema, schema_version, model, site_type,
-#                            local_states, nsites, nsamples, beta, collapse_bases,
-#                            lattice_name, lattice_sha256
-# <lattice_name>.toml        the lattice file, in the <lattice_name> directory
-#                            above this one, shared by every ensemble below it
+# /                          attributes: schema, schema_version, model, project,
+#                            site_type, local_states, nsites, nsamples, beta,
+#                            temperature, collapse_bases
+# <lattice_name>.toml        the lattice file, the single .toml in the lattice
+#                            directory four levels above this file, shared by
+#                            every ensemble below it. The lattice's name and
+#                            checksum are NOT stored here: the lattice is found
+#                            by position, so renaming it is a mv, not a rewrite
+#                            of every file that uses it.
 # /coordinates               Float64 (dim, nsites), copy of the lattice's Coordinates
 # /states                    UInt8   (nsites, nsamples)   0-based into local_states
 # /basis                     UInt8   (nsamples,)          0-based into collapse_bases
@@ -85,10 +89,11 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString=d
     isfile(path) && error("'$rel' already exists. Ensemble files are append-only; use a different tag.")
     mkpath(dirname(path))
 
-    lp = lattice_path(path, e.lattice_name)
-    lhash = sha256_string(e.lattice)
+    # The lattice lives beside the data, one per lattice directory, and is
+    # located by position rather than by any name stored in the file.
+    lp = joinpath(lattice_dir(path), e.lattice_name * ".toml")
     if isfile(lp)
-        sha256_file(lp) == lhash ||
+        sha256_file(lp) == sha256_string(e.lattice) ||
             error("lattice file '$lp' exists with different content. It is shared by the ensembles " *
                   "below it and is never overwritten; this is a different lattice and needs a different name.")
     else
@@ -112,8 +117,10 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString=d
         # and some in beta, and the index should answer either.
         a["temperature"]    = 1 / e.beta
         a["collapse_bases"] = e.collapse_bases
-        a["lattice_name"]   = e.lattice_name
-        a["lattice_sha256"] = lhash
+        # lattice_name and a lattice checksum are deliberately NOT stored. The
+        # lattice is identified by the directory the file sits under, so a
+        # rename is a `mv` plus build_index; storing either here would make the
+        # name load-bearing and turn every rename into a rewrite of every file.
 
         _write_array!(f, "coordinates", parse_lattice(e.lattice).coordinates)
         _write_array!(f, "states", e.states)
@@ -148,7 +155,7 @@ function _read_header(f, path)
     _check_schema(f, path)
     d = Dict{String,Any}(k => read_attribute(f, k) for k in
         ("model", "project", "site_type", "local_states", "nsites", "nsamples", "beta",
-         "collapse_bases", "lattice_name", "lattice_sha256"))
+         "collapse_bases"))
     d["temperature"] = read_attribute(f, "temperature")
     d["parameters"]  = Dict{String,Float64}(k => Float64(v) for (k, v) in _read_attr_group(f, "parameters"))
     d["sector"]      = Dict{String,Int}(k => Int(v) for (k, v) in _read_attr_group(f, "sector"))
@@ -156,12 +163,13 @@ function _read_header(f, path)
     d["provenance"]  = _read_attr_group(f, "provenance")
     d["observables"] = haskey(f, "observables") ? sort!(collect(keys(f["observables"]))) : String[]
 
-    lp = lattice_path(path, d["lattice_name"])
-    isfile(lp) || error("lattice file '$lp' belonging to '$path' not found")
-    d["lattice"] = read(lp, String)
-    sha256_string(d["lattice"]) == d["lattice_sha256"] ||
-        error("lattice file '$lp' has been modified: its hash does not match the one recorded in '$path'")
-    d["couplings"] = lattice_couplings(d["lattice"])
+    # Both the lattice and its name come from where the file sits, not from
+    # anything stored in it, so neither can go stale when a lattice is renamed.
+    # Whether the lattice belongs to the data is settled by validate.
+    lp = lattice_path(path)
+    d["lattice_name"] = lattice_name_of(path)
+    d["lattice"]      = read(lp, String)
+    d["couplings"]    = lattice_couplings(d["lattice"])
     return d
 end
 

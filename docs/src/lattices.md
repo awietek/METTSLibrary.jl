@@ -80,14 +80,26 @@ The lattice sits in its own directory, one level above the parameter
 directories, and every ensemble below it refers to it:
 
 ```
-tJ/square.L32.W4.cyl/square.L32.W4.cyl.toml
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed1.h5
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.2/ndn=56_nup=56/beta=4.0/seed1.h5
+tJ/superconductors/square.L32.W4.cyl/square.L32.W4.cyl.toml
+tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0/ndn=56_nup=56/T=…_beta=…/basis=X_seed=1.h5
 ```
 
-An ensemble's HDF5 file records the lattice name and the file's SHA-256; the
-file is always `../<lattice_name>.toml` relative to the HDF5 file. Reading
-checks the hash, so a lattice file that was edited after the fact is detected.
+An ensemble's HDF5 file records neither the lattice's name nor a checksum of
+it. The lattice is the single `.toml` in the lattice directory — four levels
+above the HDF5 file, since `<parameters>/<sector>/T=<T>_beta=<beta>` sit
+between them — and the lattice's name is that directory's name.
+
+Locating it by position is what keeps a rename cheap: move the directory and
+the `.toml`, rerun [`build_index`](@ref), done, with no file rewritten. A name
+stored inside every file would have to be rewritten everywhere instead, and
+could silently disagree with the directory it sits in.
+
+A lattice that does not belong to the data is caught by [`validate`](@ref),
+which checks the site count against the states, that every coupling the lattice
+names has a value in `parameters`, and that the file parses at all. That covers
+substituting the wrong lattice or truncating one. It does not catch an edit
+preserving the site count and coupling names while changing the bonds — the
+lattice, like everything else here, is append-only.
 
 The lattice file is written when the first ensemble on that lattice is
 written and never overwritten. If you write an ensemble whose lattice differs

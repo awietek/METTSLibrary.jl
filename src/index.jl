@@ -13,11 +13,16 @@ function _index_entry(root::AbstractString, rel::AbstractString)
     )
     for k in ("model", "project", "site_type", "nsites", "nsamples", "beta", "temperature",
               "collapse_bases",
-              "observables", "couplings", "lattice_name", "lattice_sha256")
+              "observables", "couplings", "lattice_name")
         entry[k] = m[k]
     end
-    # lattice file, relative to the library root
-    entry["lattice"] = relpath(lattice_path(path, m["lattice_name"]), root)
+    # lattice file, relative to the library root. Its checksum is taken from the
+    # file here rather than from an attribute inside the ensemble: it exists so
+    # a remote fetch can verify what it downloaded, not to pin the lattice to
+    # the data, and computing it at index time keeps it from going stale.
+    lp = lattice_path(path)
+    entry["lattice_sha256"] = sha256_file(lp)
+    entry["lattice"] = relpath(lp, root)
     startswith(entry["lattice"], "..") &&
         error("lattice file of '$rel' lies outside the library root: $(entry["lattice"])")
     entry["parameters"] = m["parameters"]
