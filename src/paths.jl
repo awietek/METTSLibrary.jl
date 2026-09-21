@@ -17,23 +17,28 @@ _kv_dir(d) = join(["$k=$(_fmt(v))" for (k, v) in sort(collect(d))], "_")
 
 _parameter_dir(e::Ensemble) = (s = _kv_dir(e.parameters); isempty(s) ? "default" : s)
 _sector_dir(e::Ensemble)    = (s = _kv_dir(e.sector);     isempty(s) ? "default" : s)
-# Both temperature and inverse temperature, because both are read: T is the
-# value runs are specified with and is exactly representable, beta is what the
-# file stores. Rounding matters -- 1/beta round-trips to 0.037500000000000006,
-# so each label is normalised before it becomes part of a path.
-_beta_dir(e::Ensemble) = string("T=", _fmt(round(1 / e.beta; sigdigits = 10)),
-                               "_beta=", _fmt(round(e.beta; sigdigits = 6)))
+# Both temperature and inverse temperature, because both get read: T is the
+# value runs are specified with, beta is what the file stores.
+#
+# Fixed 5+6 field. Zero padding is not decoration: lexicographic and numeric
+# order agree only when every number has the same count of integer digits, so
+# the padding is what makes `ls` list a temperature sweep in temperature order.
+# Six decimals keep the value exact -- and round away the float round-trip,
+# since 1/(1/0.0375) is 0.037500000000000006.
+_tfield(x::Real) = @sprintf("%012.6f", x)
+_beta_dir(e::Ensemble) = string("T=", _tfield(1 / e.beta), "_beta=", _tfield(e.beta))
 
 """
     relpath_for(e::Ensemble; tag) -> String
 
 Location of an ensemble inside the library, relative to its root:
 `<model>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5`, e.g.
-`tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=0.25_beta=4.0/seed3_maxm2000_X.h5`.
-The temperature directory carries both labels so it reads either way: `T` is
-exact, `beta` is rounded for legibility, and the file records both. `tag` must
-identify the run within its ensemble — seed, bond dimension, collapse basis and
-source tree, wherever those repeat.
+`tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=00000.250000_beta=00004.000000/seed3_maxm2000_X.h5`.
+The temperature directory carries both labels so it reads either way, each in a
+fixed 5+6 field: zero padded so a directory listing comes out in temperature
+order, six decimals so the value is exact. The file stores both as attributes
+and both are indexed. `tag` must identify the run within its ensemble — seed,
+bond dimension, collapse basis and source tree, wherever those repeat.
 """
 function relpath_for(e::Ensemble; tag::AbstractString)
     isempty(tag) && throw(ArgumentError("tag must not be empty"))

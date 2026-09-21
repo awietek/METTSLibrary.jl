@@ -155,11 +155,15 @@ end
     e = synthetic_tj()
     rel = ML.relpath_for(e; tag="chain01")
     @test rel == joinpath("tJ", "square.L4.W2.cyl", "J=0.4_t=3.0_t_prime=-0.3", "ndn=2_nup=3",
-                          "T=0.5_beta=2.0", "chain01.h5")
+                          "T=00000.500000_beta=00002.000000", "chain01.h5")
     # a temperature whose inverse is not exactly representable must still give a
     # clean directory: beta = 1/0.0375 = 26.666..., and 1/beta round-trips to
     # 0.037500000000000006
-    @test ML._beta_dir(with(e; beta = 1 / 0.0375)) == "T=0.0375_beta=26.6667"
+    @test ML._beta_dir(with(e; beta = 1 / 0.0375)) == "T=00000.037500_beta=00026.666667"
+    # fixed width, so a listing sorts numerically
+    @test length(ML._tfield(0.0125)) == length(ML._tfield(80.0)) == 12
+    @test sort([ML._tfield(x) for x in (80.0, 2.0, 9.0, 26.666667, 0.0125)]) ==
+          [ML._tfield(x) for x in (0.0125, 2.0, 9.0, 26.666667, 80.0)]
     @test_throws ArgumentError ML.relpath_for(e; tag="")
     @test_throws ArgumentError ML.relpath_for(e; tag="a/b")
     @test ML.unflatten_path(ML.flatten_path(rel)) == rel
