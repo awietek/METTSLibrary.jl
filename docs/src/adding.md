@@ -82,17 +82,49 @@ matrix. Standard names are `energy`, `energy2`, `entropy`, `maxdim`, `n`,
 
 ```julia
 root = ENV["METTSLIBRARY_PATH"]                     # the clone
-rel  = write_ensemble(root, e; tag = "seed$(seed)")
-# "tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed1.h5"
+rel  = write_ensemble(root, e)
+# "tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/
+#  T=00000.250000_beta=00004.000000/basis=X_maxdim=2000_tau=0.1_seed=1.h5"
 build_index(root)
 ```
 
 [`write_ensemble`](@ref) derives the location from the metadata and returns
-it. The `tag` distinguishes files with otherwise identical metadata, such as
-different chains or batches, and is mandatory. An existing file at that
-location is an error, never overwritten. The lattice file is written to
-`tJ/square.L32.W4.cyl/square.L32.W4.cyl.toml` if it is not there yet, and a
-different lattice under the same name is refused.
+it. The lattice file is written to
+`tJ/superconductors/square.L32.W4.cyl/square.L32.W4.cyl.toml` if it is not
+there yet, and a different lattice under the same name is refused.
+
+### The tag
+
+The path down to the temperature directory is fixed by the physics, so every
+run of one ensemble lands in the same directory and the filename — the tag —
+is what tells them apart. It is therefore *method*: the algorithm parameters
+that were varied, written `name=value` like the rest of the path.
+
+[`default_tag`](@ref) builds it from the ensemble's `algorithm` dictionary,
+taking the fields in [`TAG_FIELDS`](@ref) order and skipping any the run did
+not record:
+
+```julia
+default_tag(e)                       # "basis=X_maxdim=2000_tau=0.1_cutoff=1.0e-10_seed=1"
+```
+
+The field list is a default, not a fixed vocabulary. A run made with a
+different time evolution records different parameters, and those are named by
+passing `fields`:
+
+```julia
+write_ensemble(root, e; tag = default_tag(e; fields = ["basis", "maxdim", "order", "seed"]))
+```
+
+or, once for a whole ingest, by amending `TAG_FIELDS` itself. Keys that are
+in `algorithm` but not in `fields` stay out of the filename — they are still
+stored in the file and still indexed, so nothing is lost by leaving them out.
+A `tag` string can also be passed directly.
+
+Files are append-only, so an existing file at the target path is an error
+rather than an overwrite. That error is the check on the field set: it means
+two runs of one ensemble produced the same tag, so add the parameter that
+actually differs between them.
 
 [`build_index`](@ref) walks the whole tree, reads each file's metadata and
 hash, and rewrites `index.toml`. It takes a few seconds per gigabyte.

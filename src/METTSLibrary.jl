@@ -38,6 +38,7 @@ include("zenodo.jl")
 export Ensemble, nsites, nsamples, lattice, validate
 export Lattice, parse_lattice, read_lattice, lattice_couplings, square_lattice_toml
 export write_ensemble, read_ensemble
+export default_tag, TAG_FIELDS
 export build_index, load_index, ensembles, load
 export add_remote!, clear_remotes!
 export initial_states, state_labels

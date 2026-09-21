@@ -15,6 +15,8 @@ validate
 ```@docs
 write_ensemble
 read_ensemble
+default_tag
+TAG_FIELDS
 ```
 
 ## Lattice file functions

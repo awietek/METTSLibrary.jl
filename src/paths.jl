@@ -8,10 +8,10 @@
 # Runs at identical physics in two projects are different data and stay apart;
 # finding all data at some couplings is an index query, not a directory listing.
 #
-# One file is one METTS run. The tag must identify the run uniquely: across the
-# cluster archive the seed alone repeats at different bond dimensions, (seed,
-# maxdim) repeats across source trees, and (seed, maxdim, source) repeats across
-# X/Z comparison runs -- so the tag is seed<n>_maxm<m>_<basis>_<provenance>.
+# One file is one METTS run, and the tag is its filename: the last thing left
+# to tell two runs apart once the path has fixed the physics. So the tag is
+# method, not physics -- the algorithm parameters that were varied. See
+# TAG_FIELDS and default_tag below.
 
 _fmt(x::Real) = x isa Integer ? string(x) : string(Float64(x))
 
@@ -34,18 +34,64 @@ _tfield(x::Real) = @sprintf("%012.6f", x)
 _beta_dir(e::Ensemble) = string("T=", _tfield(1 / e.beta), "_beta=", _tfield(e.beta))
 
 """
-    relpath_for(e::Ensemble; tag) -> String
+Algorithm parameters the default tag is built from, in order, plus the
+pseudo-field `basis` for the collapse basis (which lives in `collapse_bases`,
+not in `algorithm`). A field missing from an ensemble's `algorithm` is skipped,
+so a run that recorded less simply gets a shorter name.
+
+This is a default, not a fixed vocabulary. A different time evolution records
+different parameters — an expansion order, a Krylov dimension, a number of
+sweeps — and naming those is a matter of passing `fields` to `default_tag`, or
+of amending this vector once for a whole ingest. What a tag has to achieve is
+uniqueness within one ensemble directory; `write_ensemble` refuses a file that
+would collide, so a field set that omits what actually varies announces itself
+at the first duplicate rather than silently overwriting.
+"""
+const TAG_FIELDS = ["basis", "maxdim", "tau", "cutoff", "seed"]
+
+_tagval(x::Integer) = string(x)
+_tagval(x::Real)    = string(Float64(x))
+_tagval(x)          = string(x)
+
+"""
+    default_tag(e::Ensemble; fields=TAG_FIELDS) -> String
+
+Filename stem for an ensemble, as `name=value` pairs joined by `_` — the same
+spelling the parameter and sector directories use, e.g.
+`basis=X_maxdim=1000_tau=0.1_cutoff=1.0e-10_seed=3`. Values come from
+`e.algorithm`, except `basis`, which is `e.collapse_bases`. Fields absent from
+`algorithm` are skipped; pass `fields` to name others.
+
+Nothing is lost by leaving a field out: every value is stored properly inside
+the file and is indexed. The tag exists to be read by eye and to be unique.
+"""
+function default_tag(e::Ensemble; fields=TAG_FIELDS)
+    parts = String[]
+    for f in fields
+        k = String(f)
+        v = k == "basis" ? join(e.collapse_bases) : get(e.algorithm, k, nothing)
+        v === nothing && continue
+        push!(parts, string(k, "=", _tagval(v)))
+    end
+    isempty(parts) && throw(ArgumentError(
+        "cannot build a tag: the ensemble records none of $(join(fields, ", ")). " *
+        "Pass fields=[...] naming the parameters that distinguish this run, or tag=\"...\"."))
+    return join(parts, "_")
+end
+
+"""
+    relpath_for(e::Ensemble; tag=default_tag(e)) -> String
 
 Location of an ensemble inside the library, relative to its root:
 `<model>/<project>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5`, e.g.
-`tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=00000.250000_beta=00004.000000/seed3_maxm2000_X.h5`.
+`tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=00000.250000_beta=00004.000000/basis=X_maxdim=2000_tau=0.1_seed=3.h5`.
 The temperature directory carries both labels so it reads either way, each in a
 fixed 5+6 field: zero padded so a directory listing comes out in temperature
 order, six decimals so the value is exact. The file stores both as attributes
-and both are indexed. `tag` must identify the run within its ensemble — seed,
-bond dimension, collapse basis and source tree, wherever those repeat.
+and both are indexed. `tag` must identify the run within its ensemble; by
+default it is `default_tag(e)`.
 """
-function relpath_for(e::Ensemble; tag::AbstractString)
+function relpath_for(e::Ensemble; tag::AbstractString=default_tag(e))
     isempty(tag) && throw(ArgumentError("tag must not be empty"))
     occursin(r"[/\\\s]", tag) && throw(ArgumentError("tag must not contain slashes or whitespace"))
     isempty(e.project) && throw(ArgumentError("project must not be empty"))

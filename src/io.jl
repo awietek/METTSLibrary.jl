@@ -67,16 +67,18 @@ end
 sha256_string(s::AbstractString) = bytes2hex(sha256(codeunits(s)))
 
 """
-    write_ensemble(root, e::Ensemble; tag) -> relpath
+    write_ensemble(root, e::Ensemble; tag=default_tag(e)) -> relpath
 
 Write `e` into the library at `root`, at
-`<model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5`, and return that
-relative path. The lattice is written to `<model>/<lattice_name>/<lattice_name>.toml`
-if it is not there yet; if it is, it must be identical, since other
-ensembles share it. Files are append-only: an existing file at the target
-path is an error, use another `tag`. Validates before writing.
+`<model>/<project>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5`,
+and return that relative path. The lattice is written to
+`<model>/<project>/<lattice_name>/<lattice_name>.toml` if it is not there yet;
+if it is, it must be identical, since other ensembles share it. Files are
+append-only: an existing file at the target path is an error — that means two
+runs produced the same tag, so name the parameter that differs between them
+(`tag=default_tag(e; fields=[...])`). Validates before writing.
 """
-function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString)
+function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString=default_tag(e))
     validate(e)
     rel  = relpath_for(e; tag)
     path = joinpath(root, rel)

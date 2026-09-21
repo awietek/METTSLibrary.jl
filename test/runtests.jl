@@ -171,6 +171,26 @@ end
           [ML._tfield(x) for x in (0.0125, 2.0, 9.0, 26.666667, 80.0)]
     @test_throws ArgumentError ML.relpath_for(e; tag="")
     @test_throws ArgumentError ML.relpath_for(e; tag="a/b")
+
+    # the tag is name=value like the rest of the path, built from whatever
+    # algorithm parameters the run recorded, in TAG_FIELDS order
+    alg = Dict{String,Any}("code" => "metts", "seed" => 3, "maxdim" => 1000,
+                           "tau" => 0.1, "cutoff" => 1e-10, "nwarm" => 20)
+    ea = with(e; algorithm=alg, collapse_bases=["X"])
+    @test default_tag(ea) == "basis=X_maxdim=1000_tau=0.1_cutoff=1.0e-10_seed=3"
+    # fields absent from algorithm are skipped, not written as empty
+    @test default_tag(with(ea; algorithm=Dict{String,Any}("seed" => 3))) == "basis=X_seed=3"
+    # unlisted keys stay out of the filename even though they are in the file
+    @test !occursin("nwarm", default_tag(ea)) && haskey(ea.algorithm, "nwarm")
+    # the field set is not fixed: another time evolution names its own
+    @test default_tag(with(ea; algorithm=merge(alg, Dict{String,Any}("order" => 4)));
+                      fields=["basis", "order", "seed"]) == "basis=X_order=4_seed=3"
+    # a mixed-basis file is labelled by every basis it holds
+    @test startswith(default_tag(with(ea; collapse_bases=["Z", "X"])), "basis=ZX_")
+    # nothing to name is an error, not a nameless file
+    @test_throws ArgumentError default_tag(with(e; algorithm=Dict{String,Any}()); fields=["seed"])
+    # write_ensemble and relpath_for default to it
+    @test ML.relpath_for(ea) == ML.relpath_for(ea; tag=default_tag(ea))
     @test ML.unflatten_path(ML.flatten_path(rel)) == rel
     @test ML.lattice_path("/lib/tJ/sq/p/b.h5", "sq") == "/lib/tJ/sq/sq.toml"
 end

@@ -179,6 +179,105 @@ function prov_of(path::AbstractString)
     return join(p[1:li-1], "/")
 end
 
+# ---- resolving the real lattice file ---------------------------------------
+# The library keys a lattice by the lattice FILE, not by the output directory:
+# `square.op.nx.32.ny.4` is a directory, `square.op.nx.32.ny.4.ttpJ` is the
+# lattice, and the couplings must be named as that file declares them (T, Tp, J)
+# rather than as the path spells them (t, tp, J). Getting either wrong files the
+# same physics under a second name.
+const LATROOTS = ["/home/awietek/Research/Projects", "/data/condmat/awietek"]
+
+function lattice_index()
+    idx = String[]
+    for root in LATROOTS
+        isdir(root) || continue
+        for (d, _, fs) in walkdir(root; onerror = _ -> nothing)
+            occursin("/measurement-files", d) && continue
+            for f in fs
+                (endswith(f, ".lat") || endswith(f, ".cylinder.toml")) && push!(idx, joinpath(d, f))
+            end
+        end
+    end
+    return idx
+end
+
+# Bond couplings a lattice declares: "HOP T 0 1" -> T
+function lat_couplings(path::AbstractString)
+    out = String[]
+    try
+        for l in eachline(path)
+            f = split(strip(l))
+            length(f) >= 4 && occursin(r"^[A-Z]", f[1]) && push!(out, String(f[2]))
+        end
+    catch; end
+    return sort(unique(out))
+end
+
+const LATIDX   = lattice_index()
+const LATCACHE = Dict{String,Any}()
+const LATFLAGS = Dict{String,Vector{String}}()
+
+# Candidates are files whose stem is the lattice directory name or begins with
+# it. Among those the one whose declared couplings overlap the run's parameters
+# most wins, ties going to a lattice under the same project. Overlap must be at
+# least one: a lattice declaring T, Tp, J is not the lattice of a run
+# parameterised by tx, ty, Jx, Jy, however well the directory names match.
+# Note the lattice names only BOND couplings, so the run's U, mu, B, eta are
+# expected to be absent from it -- subset is the wrong test, overlap is right.
+function resolve_lattice(proj::AbstractString, prov::AbstractString,
+                         latdir::AbstractString, par)
+    key = string(proj, "|", prov, "|", latdir, "|", join(sort(first.(par)), ","))
+    haskey(LATCACHE, key) && return LATCACHE[key]
+    want = Set(uppercase(first(p)) for p in par)
+    best = nothing; bestscore = 0
+    for f in LATIDX
+        stem = replace(basename(f), r"\.lat$" => "", r"\.toml$" => "")
+        (stem == latdir || startswith(stem, latdir * ".")) || continue
+        cpl = lat_couplings(f)
+        isempty(cpl) && continue
+        ov = count(c -> uppercase(c) in want, cpl)
+        ov >= 1 || continue
+        score = 10 * ov
+        occursin("/Projects/$proj/", f) && (score += 3)
+        for seg in split(prov, '/')
+            occursin("/$seg/lattice-files/", f) && (score += 2)
+        end
+        if score > bestscore
+            bestscore = score; best = (file = f, name = stem, couplings = cpl)
+        end
+    end
+    LATCACHE[key] = best
+    return best
+end
+
+# Rewrite the parameters so their keys are the names the lattice declares, and
+# add any coupling the lattice names that the run left out -- those were set to
+# zero and still need a value, as the file format requires.
+function apply_lattice(path, proj, prov, latdir, par)
+    r = resolve_lattice(proj, prov, latdir, par)
+    if r === nothing
+        LATFLAGS[path] = ["lattice_file_missing"]
+        return (latdir, par)
+    end
+    flags = String[]
+    byupper = Dict(uppercase(first(p)) => last(p) for p in par)
+    newpar = Pair{String,Float64}[]
+    used = Set{String}()
+    for c in r.couplings
+        u = uppercase(c)
+        if haskey(byupper, u)
+            push!(newpar, c => byupper[u]); push!(used, u)
+        else
+            push!(newpar, c => 0.0); push!(flags, "coupling_defaulted")
+        end
+    end
+    for p in par
+        uppercase(first(p)) in used || push!(newpar, p)
+    end
+    isempty(flags) || (LATFLAGS[path] = unique(flags))
+    return (r.name, sort(newpar, by = first))
+end
+
 runs = Run[]
 unparsed = String[]
 
@@ -193,6 +292,7 @@ for line in eachline(joinpath(W, "classified.tsv"))
     r = parse_path(rel, nsites)
     r === nothing && (push!(unparsed, path); continue)
     (proj, model, st, lat, par, sec, T) = r
+    lat, par = apply_lattice(path, proj, prov_of(path), lat, par)
     f = basename(path)
     push!(runs, Run(proj, proj, "legacy_cpp", model, st, lat, par, sec, T,
         seed_of(f), basis_final(path, f),
@@ -219,6 +319,7 @@ for line in eachline(joinpath(W, "mates2.tsv"))
     r = parse_path(rel, nsites)
     r === nothing && (push!(unparsed, path); continue)
     (proj, model, st, lat, par, sec, T) = r
+    lat, par = apply_lattice(path, proj, prov_of(path), lat, par)
     f = basename(path)
     d = dirname(path)
     # non-greedy and anchored: "tau.0.1.cutoff.1e-6.maxdim.1000" must not
@@ -250,6 +351,7 @@ for line in eachline(joinpath(W, "names.paths"))
     r = parse_path(rel, nsites)
     r === nothing && (push!(unparsed, path); continue)
     (proj, model, st, lat, par, sec, T) = r
+    lat, par = apply_lattice(path, proj, prov_of(path), lat, par)
     f = basename(path)
     push!(runs, Run(proj, proj, "legacy_cpp_chkpt", model, st, lat, par, sec, T,
         seed_of(f), basis_of(f),
@@ -351,6 +453,9 @@ open(joinpath(W, "catalogue.tsv"), "w") do io
         r0.project == "hubbard.kanamori" && push!(flags, "lattice_built_in_code")
         r0.project == "hubbard.kanamori" && push!(flags, "misfiled_under_kagome")
         r0.project == "kagome.superconductors" && push!(flags, "lattice_needs_conversion")
+        for x in rs, fl in get(LATFLAGS, x.path, String[])
+            fl in flags || push!(flags, fl)
+        end
         length(unique(x.nsites for x in rs)) > 1 && push!(flags, "mixed_nsites")
         isempty(r0.sector) && push!(flags, "no_sector")
         any(occursin("_bkup/", x.path) for x in rs) && push!(flags, "backup_subtree")
@@ -366,12 +471,32 @@ open(joinpath(W, "catalogue.tsv"), "w") do io
         maxd(x) = (for (kk, vv) in x.algo; kk == "maxdim" && return round(Int, vv); end; 0)
         maxdims = sort(unique(maxd(x) for x in rs))
         length(maxdims) > 1 && push!(flags, "multi_maxdim")
-        # Library tag: seed<n>_maxm<m>_<basis>_<provenance>. Each component is
-        # forced by a real collision: the seed repeats across bond dimensions,
-        # (seed, maxdim) repeats across provenance trees, and the X/Z comparison
-        # runs in hubbard.square.metts repeat everything but the collapse basis.
-        tag(x) = string("seed", x.seed, "_maxm", maxd(x), "_", x.basis, "_",
-                        replace(prov_of(x.path), '/' => '.'))
+        # Library tag, mirroring METTSLibrary.default_tag: the algorithm
+        # parameters that distinguish runs of one ensemble, written name=value
+        # in TAG_FIELDS order, skipping whatever the run did not record. Note
+        # that legacy C++ runs keep tau in the run script rather than in the
+        # filename, so a converted file gains a tau= component that cannot be
+        # predicted from the archive alone. The source tree is appended only
+        # where a project genuinely draws on two of them (tj/ and tj_bkup/).
+        function base(x)
+            d = Dict{String,Any}(x.algo)
+            d["basis"] = x.basis
+            x.seed >= 0 && (d["seed"] = x.seed)
+            parts = String[]
+            for f in ("basis", "maxdim", "tau", "cutoff", "seed")
+                haskey(d, f) || continue
+                v = d[f]
+                # 0 is the sentinel the filename parsers use for "not present"
+                f in ("maxdim", "tau", "cutoff") && v == 0 && continue
+                s = f == "maxdim" ? string(round(Int, v)) :
+                    v isa Integer ? string(v)             :
+                    v isa Real    ? string(Float64(v))    : string(v)
+                push!(parts, string(f, "=", s))
+            end
+            join(parts, "_")
+        end
+        needprov = length(unique(base(x) for x in rs)) < length(rs)
+        tag(x) = needprov ? string(base(x), "_", replace(prov_of(x.path), '/' => '.')) : base(x)
         tags = [tag(x) for x in rs]
         if length(unique(tags)) < length(rs)
             # Genuinely distinct runs that every parameter in the name agrees on

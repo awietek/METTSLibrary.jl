@@ -98,22 +98,32 @@ the two older formats are converted to this form on ingest.
 ## Location in the library
 
 ```
-<model>/<lattice_name>/<lattice_name>.toml
-<model>/<lattice_name>/<parameters>/<sector>/beta=<beta>/<tag>.h5
-
-tJ/square.L32.W4.cyl/square.L32.W4.cyl.toml
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed1.h5
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=4.0/seed2.h5
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/beta=8.0/seed1.h5
-tJ/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.2/ndn=56_nup=56/beta=4.0/seed1.h5
-Heisenberg/shastry.16.HB.J.Jd.fsl/shastry.16.HB.J.Jd.fsl.toml
-Heisenberg/shastry.16.HB.J.Jd.fsl/J2=1.0_J2p=1.0_J3=1.0_J3p=1.0_Jd=1.0/default/beta=1.0/seed1.h5
+<model>/<project>/README.md
+<model>/<project>/<lattice_name>/<lattice_name>.toml
+<model>/<project>/<lattice_name>/<parameters>/<sector>/T=<T>_beta=<beta>/<tag>.h5
 ```
 
-One file is one METTS run, so `<tag>` is normally the seed: the runs of a
-parameter set at one temperature sit side by side in the `beta=<beta>`
-directory. A sector with no conserved quantum numbers gives `default`.
-All datasets are stored chunked and deflated.
+Abbreviating the temperature directory to `T=0.25` for readability, a
+project looks like this:
+
+```
+tJ/superconductors/README.md
+tJ/superconductors/square.L32.W4.cyl/square.L32.W4.cyl.toml
+tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=0.25/basis=X_maxdim=2000_tau=0.1_seed=1.h5
+tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=0.25/basis=X_maxdim=2000_tau=0.1_seed=2.h5
+tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.3/ndn=56_nup=56/T=0.125/basis=X_maxdim=2000_tau=0.1_seed=1.h5
+tJ/superconductors/square.L32.W4.cyl/J=0.4_t=3.0_t_prime=-0.2/ndn=56_nup=56/T=0.25/basis=X_maxdim=2000_tau=0.1_seed=1.h5
+Heisenberg/frustration/shastry.16.HB.J.Jd.fsl/shastry.16.HB.J.Jd.fsl.toml
+Heisenberg/frustration/shastry.16.HB.J.Jd.fsl/J2=1.0_Jd=1.0/default/T=1.0/basis=Z_maxdim=512_seed=1.h5
+```
+
+Everything above the filename is physics: model, project, lattice, couplings,
+sector, temperature. Two runs that share all of it belong to the same
+ensemble and land in the same directory, so the tag — the filename — is
+method: the algorithm parameters that were varied. See
+[`default_tag`](@ref) for how it is built. A sector with no conserved
+quantum numbers gives `default`. All datasets are stored chunked and
+deflated.
 
 Couplings and quantum numbers are written `name=value`. The `=` is not
 decoration: keys may contain `_` and values may be negative, so `t_prime=-0.3`
