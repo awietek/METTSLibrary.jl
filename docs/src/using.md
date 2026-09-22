@@ -49,6 +49,7 @@ An [`Ensemble`](@ref) holds:
 ## Checking thermalization
 
 The per-sample observables exist so you can judge an ensemble before using it.
+Samples are stored in chain order, so a sample's position *is* its METTS step.
 
 ```julia
 using Statistics
@@ -56,9 +57,15 @@ E = e.observables["energy"]
 mean(E), std(E) / sqrt(length(E))
 
 # drop a burn-in the run did not discard itself
-keep = e.step .> 500
-mean(E[keep]), count(keep)
+keep = 501:length(E)
+mean(E[keep]), length(keep)
 ```
+
+This matters more than it sounds. Many archived runs were launched with
+`nwarm = 0`, discarding nothing, so the start of a chain sits well away from
+equilibrium — and where a chain is short, that start dominates its average.
+Plot `energy` against position before trusting a mean: a visible drift is the
+burn-in, and the flat part after it is the thermal region.
 
 One file is one METTS run, so comparing runs means comparing files: read the
 ensembles of a parameter set and check that their means agree within their

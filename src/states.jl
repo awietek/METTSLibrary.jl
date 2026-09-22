@@ -19,7 +19,9 @@ exceed their number. With `n=nothing` all eligible samples are returned in
 file order.
 
 - `basis`: restrict to samples collapsed in this basis label, e.g. "Z".
-- `thin`:  use only every `thin`-th step along each chain to reduce autocorrelation.
+- `thin`:  use only every `thin`-th sample along the chain to reduce
+  autocorrelation. A file is one run in chain order, so a sample's position is
+  its step.
 """
 function initial_states(e::Ensemble, n::Union{Nothing,Integer}=nothing;
                         basis=nothing, thin::Integer=1, rng::AbstractRNG=Random.default_rng())
@@ -30,7 +32,7 @@ function initial_states(e::Ensemble, n::Union{Nothing,Integer}=nothing;
         UInt8(i - 1)
     end
     eligible = [j for j in 1:nsamples(e)
-                if (bcode === nothing || e.basis[j] == bcode) && (thin == 1 || e.step[j] % thin == 0)]
+                if (bcode === nothing || e.basis[j] == bcode) && (thin == 1 || j % thin == 0)]
     n === nothing && return [state_indices(e, j) for j in eligible]
     n <= length(eligible) ||
         throw(ArgumentError("requested $n states but only $(length(eligible)) eligible samples"))

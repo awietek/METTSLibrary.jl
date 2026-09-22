@@ -414,6 +414,11 @@ end
             f["H"] = reshape(collect(1.0:M), 1, M)
             f["Entropy"] = reshape(fill(0.5, M), 1, M)
             f["Sz"] = zeros(N, M)               # per-site, not per-step scalar: ignored
+            # a genuinely complex per-step scalar, as the Hubbard runs have in
+            # `Polarization`: kept whole as two real observables
+            f["Polarization"] = reshape(ComplexF64[0.5 + 0.25im, -0.5 + 0.0im,
+                                                   0.0 - 0.75im, 1.0 + 1.0im,
+                                                   -0.25 - 0.5im], 1, M)
         end
         lat = joinpath(dir, "chain.lat")
         write(lat, "[Coordinates]\n" * join(string.(0:N-1), "\n") *
@@ -430,6 +435,11 @@ end
         @test e.observables["energy"] == collect(1.0:M)
         @test e.observables["entropy"] == fill(0.5, M)
         @test !haskey(e.observables, "sz")
+        # complex per-step scalars are split rather than reduced: neither the
+        # modulus nor the real part alone would let the other be recovered
+        @test !haskey(e.observables, "polarization")
+        @test e.observables["polarization_re"] == [0.5, -0.5, 0.0, 1.0, -0.25]
+        @test e.observables["polarization_im"] == [0.25, 0.0, -0.75, 1.0, -0.5]
         @test size(lattice(e).coordinates) == (1, N)
         @test lattice_couplings(lattice(e)) == ["T"]
         @test e.provenance["source_format"] == "legacy_cpp_dump_h5"
@@ -470,10 +480,31 @@ end
         @test p.L == 3 && p.W == 2 && p.J == 0.4 && p.t == 3.0 && p.t_prime == -0.3
         @test p.T == 0.2 && p.D == 1000 && p.tau == 0.1 && p.cutoff == 1e-8 && p.seed == 7
 
-        e = from_ttj_run(dir; project="testproject")
+        # Real samples.txt files are written from a Dict and so arrive in hash
+        # order, not chain order -- a kagome run reads 5, 56, 35, 55, ... while
+        # covering 1..N exactly. The converter sorts by label, which is what
+        # makes "sample position == step" true afterwards; without it the chain
+        # would be scrambled and, with no step field, unrecoverable.
+        let d = joinpath(dir, "scrambled")
+            mkpath(d)
+            write(joinpath(d, "samples.txt"),
+                  "3: [3, 3, 3, 3, 3, 3]\n1: [1, 1, 1, 1, 1, 1]\n2: [2, 2, 2, 2, 2, 2]\n")
+            s = from_samples_txt(joinpath(d, "samples.txt");
+                                 lattice=square_lattice_toml(3, 2; yperiodic=true,
+                                                             bonds=[("t", "HOP", :nn)]),
+                                 lattice_name="square.L3.W2.cyl", model="tJ",
+                                 project="testproject", site_type="tJ", temperature=0.5,
+                                 parameters=Dict("t" => 1.0))
+            # stored in chain order 1, 2, 3 -- not the file's 3, 1, 2
+            @test s.states[1, :] == UInt8[0, 1, 2]
+        end
+
+        # the labels here are 1, 2, 4 -- not 1..N. They are not stored, but the
+        # sample order is kept and the gap is reported rather than swallowed.
+        e = @test_logs (:warn,) match_mode=:any from_ttj_run(dir; project="testproject")
         @test nsites(e) == 6 && nsamples(e) == 3
-        @test e.step == Int32[1, 2, 4]
         @test e.states[:, 1] == UInt8[0, 1, 2, 1, 2, 1]
+        @test e.states[:, 3] == UInt8[2, 1, 1, 2, 0, 1]   # the "4:" sample, third in order
         @test e.collapse_bases == ["X"]
         @test e.beta ≈ 5.0
         @test e.sector["n"] == 5

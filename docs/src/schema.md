@@ -38,10 +38,15 @@ the data is settled by [`validate`](@ref) — site count, couplings covered by
 | `coordinates`  | float64 | `(dim, N)`          | copy of the lattice file's `Coordinates`, for readers that do not want to parse TOML |
 | `states`       | uint8   | `(N, M)`            | local state of site `i` in sample `j`, **0-based index into `local_states`** |
 | `basis`        | uint8   | `(M,)`              | 0-based index into `collapse_bases` for each sample |
-| `step`         | int32   | `(M,)`              | METTS step this sample was taken at |
 | `observables/<name>` | float64 | `(..., M)`    | per-sample observables; last dimension is the sample |
 
 In C or Python (h5py) the shapes appear transposed: `states` is `(M, N)`.
+
+**Samples are in chain order**, so sample `j` is METTS step `j`; there is no
+`step` dataset. It was stored until it was checked and found to be exactly
+`1..N` in every file, including the runs that resume and append. A converter
+that ever meets labels which are not `1..N` warns rather than dropping them
+quietly.
 
 ## Groups holding scalar attributes
 

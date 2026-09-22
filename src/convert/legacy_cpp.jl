@@ -38,6 +38,8 @@ metadata, so everything must be supplied: the lattice file used for the run
 the lattice. `lattice_name` defaults to the lattice file's basename.
 Every per-step scalar dataset is kept as an observable; known ones are
 renamed (see `LEGACY_CPP_OBSERVABLES`), others keep their lowercased name.
+A complex-valued one is split into `<name>_re` and `<name>_im`, since an
+observable is `Float64` and reducing it would discard half the information.
 """
 function from_legacy_cpp(dump_h5::AbstractString;
                          lattice::AbstractString, model::AbstractString, project::AbstractString,
@@ -65,12 +67,26 @@ function from_legacy_cpp(dump_h5::AbstractString;
             d = f[k]
             # per-step scalars are stored as (nsteps, 1) in C order -> (1, nsteps) in Julia
             k != "ProductState" && d isa HDF5.Dataset && size(d) == (1, M) || continue
-            obs[get(LEGACY_CPP_OBSERVABLES, k, lowercase(k))] = vec(Float64.(read(d)))
+            name = get(LEGACY_CPP_OBSERVABLES, k, lowercase(k))
+            v = vec(read(d))
+            if eltype(v) <: Complex
+                # An observable is Float64, but a few per-step scalars are
+                # genuinely complex -- `Polarization`, the many-body
+                # polarization <exp(2pi i X/L)>, in the Hubbard runs. Keep it
+                # whole as two real observables instead of reducing it: |P|
+                # measures localization and arg(P) is the polarization itself,
+                # so taking the real part or the modulus would throw away half
+                # of it. Either is recoverable from the pair.
+                obs[name * "_re"] = Float64.(real(v))
+                obs[name * "_im"] = Float64.(imag(v))
+            else
+                obs[name] = Float64.(v)
+            end
         end
         st, obs
     end
 
-    return _converted(states, 1:size(states, 2);
+    return _converted(states;
         source=dump_h5, source_format="legacy_cpp_dump_h5", code="metts (C++)",
         lattice, lattice_name, model, project, site_type, beta, temperature, basis,
         parameters, sector, algorithm, observables=obs)

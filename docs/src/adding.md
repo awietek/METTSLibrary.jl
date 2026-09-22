@@ -30,14 +30,15 @@ N = length(sites)
 states  = UInt8[]                 # appended column by column
 energy  = Float64[]
 entropy = Float64[]
-steps   = Int32[]
 
 for step in 1:nmetts
     psi = evolve(psi, beta / 2)                    # your imaginary-time evolution
-    push!(energy,  real(inner(psi', H, psi)))
-    push!(entropy, entropy_von_neumann(psi, N ÷ 2))
     σ = collapse_with_qn(psi, "Z")                 # Vector{Int}, 1-based ITensors indices
-    step > nwarm && (append!(states, UInt8.(σ .- 1)); push!(steps, step))
+    if step > nwarm                                # keep observables and states together
+        append!(states, UInt8.(σ .- 1))
+        push!(energy,  real(inner(psi', H, psi)))
+        push!(entropy, entropy_von_neumann(psi, N ÷ 2))
+    end
     psi = MPS(sites, [local_state_string(sites[i], σ[i]) for i in 1:N])
 end
 states = reshape(states, N, :)
@@ -63,9 +64,7 @@ e = Ensemble(
     provenance = Dict{String,Any}("creator" => "A. Wietek", "project" => "pseudogap"),
     collapse_bases = ["Z"],
     states     = states,
-    step       = steps,
-    observables = Dict{String,Array{Float64}}("energy" => energy[nwarm+1:end],
-                                              "entropy" => entropy[nwarm+1:end]),
+    observables = Dict{String,Array{Float64}}("energy" => energy, "entropy" => entropy),
 )
 ```
 

@@ -9,7 +9,7 @@ found. Checks:
 - `model`, `project` and `lattice_name` are usable as directory names
 - label tables are non-empty and short enough for UInt8 indices
 - every stored state and basis index refers to an existing label
-- basis, step and observables have matching sample counts
+- basis and observables have matching sample counts
 - if a sector is given, every Z-basis sample has the declared particle numbers
 """
 function validate(e::Ensemble)
@@ -57,7 +57,6 @@ function validate(e::Ensemble)
     end
 
     length(e.basis) == M || push!(errs, "basis has length $(length(e.basis)), expected $M")
-    length(e.step)  == M || push!(errs, "step has length $(length(e.step)), expected $M")
     for (k, v) in e.observables
         size(v, ndims(v)) == M ||
             push!(errs, "observable '$k' has last dimension $(size(v, ndims(v))), expected $M")

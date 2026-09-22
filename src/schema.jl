@@ -56,7 +56,6 @@ Fields
 - `collapse_bases` : labels of collapse bases used, e.g. ["Z"] or ["Z", "X"]
 - `states`         : (nsites, nsamples) UInt8, 0-based index into `local_states`
 - `basis`          : (nsamples,) UInt8, 0-based index into `collapse_bases`
-- `step`           : step within the run, per sample
 - `observables`    : name => array whose last dimension is nsamples
 """
 Base.@kwdef struct Ensemble
@@ -74,7 +73,6 @@ Base.@kwdef struct Ensemble
     collapse_bases::Vector{String} = ["Z"]
     states::Matrix{UInt8}
     basis::Vector{UInt8} = zeros(UInt8, size(states, 2))
-    step::Vector{Int32} = Int32.(1:size(states, 2))
     observables::Dict{String,Array{Float64}} = Dict{String,Array{Float64}}()
 end
 

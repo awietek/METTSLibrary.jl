@@ -14,8 +14,10 @@
                      lattice_name=nothing, observables=Dict()) -> Ensemble
 
 Convert a METTS.jl `samples.txt`. Integers in the file are 1-based ITensors
-indices for `site_type` and are stored 0-based. The measurement index becomes
-`step`. The lattice (path or TOML text) and all metadata must be supplied;
+indices for `site_type` and are stored 0-based. Samples are ordered by their
+measurement index, which is not otherwise kept: a file is one run in chain
+order, so a sample's position is its step.
+The lattice (path or TOML text) and all metadata must be supplied;
 `lattice_name` defaults to the lattice file's basename. See `from_ttj_run`
 for the path-based convenience wrapper.
 """
@@ -35,6 +37,12 @@ function from_samples_txt(path::AbstractString;
         isempty(body) || (samples[parse(Int, strip(parts[1]))] = parse.(Int, split(body, ",")))
     end
     isempty(samples) && error("no samples found in '$path'")
+    # THE SORT IS LOAD-BEARING. These files are written by iterating a Dict
+    # keyed by step, so their lines come out in hash order, not chain order:
+    # a kagome run's labels read 5, 56, 35, 55, 60, ... while covering 1..N
+    # exactly. Sorting here is what puts the samples back into chain order --
+    # and since the library stores no step field, reading them in file order
+    # would scramble the chain irrecoverably.
     steps = sort!(collect(keys(samples)))
     N = length(samples[steps[1]])
     all(length(samples[s]) == N for s in steps) || error("inconsistent sample lengths in '$path'")
@@ -44,7 +52,15 @@ function from_samples_txt(path::AbstractString;
         1 <= v <= nlabels || error("state index $v out of range for site type '$site_type' (line $s)")
         states[i, j] = v - 1
     end
-    return _converted(states, steps;
+    # Samples are stored in chain order, so a sample's position is its step and
+    # the labels are not kept. Every samples.txt in the archive runs 1..N --
+    # checked across 400 kagome/Kanamori files, including resumed runs, which
+    # rewrite from 1 rather than leaving gaps. Say so if that ever stops being
+    # true, instead of dropping the labels silently.
+    steps == collect(1:length(steps)) || @warn(
+        "step labels are not 1..N; they are not stored, only the sample order is",
+        path, first_labels = first(steps, 8))
+    return _converted(states;
         source=path, source_format="metts_jl_samples_txt", code="METTS.jl",
         lattice, lattice_name, model, project, site_type, beta, temperature, basis,
         parameters, sector, algorithm, observables)

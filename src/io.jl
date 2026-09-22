@@ -15,7 +15,9 @@
 # /coordinates               Float64 (dim, nsites), copy of the lattice's Coordinates
 # /states                    UInt8   (nsites, nsamples)   0-based into local_states
 # /basis                     UInt8   (nsamples,)          0-based into collapse_bases
-# /step                      Int32   (nsamples,)
+# (no /step: a sample's position in the chain is its column index. Every run
+#  in the archive, C++ and METTS.jl alike, produced steps 1..N, so storing them
+#  was 4 bytes per sample saying only what the position already says.)
 # /parameters                group, one scalar attribute per coupling
 # /sector                    group, one integer attribute per quantum number
 # /algorithm                 group, scalar attributes
@@ -34,7 +36,7 @@ const _DEFLATE = 3
 _chunk_dims(sz::Tuple{}) = ()
 _chunk_dims(sz::NTuple{D,Int}) where {D} = (sz[1:end-1]..., max(1, min(sz[end], 4096)))
 
-# Every array dataset goes through here, so states, basis, step, coordinates
+# Every array dataset goes through here, so states, basis, coordinates
 # and the observables are all stored deflated.
 function _write_array!(parent, name::AbstractString, a::AbstractArray)
     if length(a) < _COMPRESS_MIN || any(==(0), size(a))
@@ -129,7 +131,6 @@ function write_ensemble(root::AbstractString, e::Ensemble; tag::AbstractString=d
         _write_array!(f, "coordinates", parse_lattice(e.lattice).coordinates)
         _write_array!(f, "states", e.states)
         _write_array!(f, "basis",  e.basis)
-        _write_array!(f, "step",   e.step)
 
         _write_attr_group!(f, "parameters", e.parameters)
         _write_attr_group!(f, "sector",     e.sector)
@@ -196,7 +197,6 @@ function read_ensemble(path::AbstractString)
             parameters=h["parameters"], sector=h["sector"], algorithm=h["algorithm"], provenance=h["provenance"],
             collapse_bases=Vector{String}(h["collapse_bases"]),
             states=Matrix{UInt8}(read(f["states"])), basis=Vector{UInt8}(read(f["basis"])),
-            step=Vector{Int32}(read(f["step"])),
             observables=obs))
     end
 end
