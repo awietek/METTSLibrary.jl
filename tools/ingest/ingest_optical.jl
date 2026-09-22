@@ -95,7 +95,7 @@ function convert_one(r, project)
                     provenance = merge(e.provenance,
                                        Dict{String,Any}("time_evolution_source" => RUN_SCRIPT)),
                     collapse_bases = e.collapse_bases, states = e.states, basis = e.basis,
-                    step = e.step, observables = e.observables)
+                    observables = e.observables)
 end
 
 function main()
