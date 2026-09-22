@@ -135,21 +135,31 @@ function _build_project(root, model, project, rels)
         f["algorithm"] = Dict{String,Any}(k => v for (k, v) in f["algorithm"] if !(k in tagalg))
     end
 
-    # Fields with one value across the whole project belong in the header, not
-    # on every run. site_type, collapse_bases and observables are typically
-    # constant, and so are most of the algorithm's remaining entries.
+    # Hoist the MOST COMMON value of each field into the header and leave only
+    # the exceptions on the runs that differ. Requiring a single value instead
+    # would give up at the first exception: Hubbard's `observables` has two
+    # variants -- 405 of 4996 runs record a complex Polarization, the rest do
+    # not -- and demanding uniqueness made all 4996 carry the full twelve-name
+    # list, 36% of that project's index for one bit of information.
+    modal(vals) = (c = Dict{Any,Int}(); for v in vals; c[v] = get(c, v, 0) + 1; end;
+                   argmax(k -> c[k], keys(c)))
+
     defaults = Dict{String,Any}()
     for k in ("site_type", "collapse_bases", "observables")
-        vs = unique(f[k] for (_, _, f) in raw)
-        length(vs) == 1 && (defaults[k] = only(vs); foreach(t -> delete!(t[3], k), raw))
+        d = modal(f[k] for (_, _, f) in raw)
+        defaults[k] = d
+        foreach(t -> t[3][k] == d && delete!(t[3], k), raw)
     end
     algkeys = union((keys(f["algorithm"]) for (_, _, f) in raw)...)
     dalg = Dict{String,Any}()
     for k in algkeys
-        vs = unique(get(f["algorithm"], k, nothing) for (_, _, f) in raw)
-        length(vs) == 1 && only(vs) !== nothing || continue
-        dalg[k] = only(vs)
-        foreach(t -> delete!(t[3]["algorithm"], k), raw)
+        # Only hoist a key every run has. Otherwise a run that genuinely lacks
+        # it would inherit the default on expansion and gain a value it never
+        # had -- absence has to stay distinguishable from agreement.
+        all(haskey(f["algorithm"], k) for (_, _, f) in raw) || continue
+        d = modal(f["algorithm"][k] for (_, _, f) in raw)
+        dalg[k] = d
+        foreach(t -> t[3]["algorithm"][k] == d && delete!(t[3]["algorithm"], k), raw)
     end
     isempty(dalg) || (defaults["algorithm"] = dalg)
 
