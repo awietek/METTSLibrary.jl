@@ -34,6 +34,8 @@ include("convert/common.jl")
 include("convert/legacy_cpp.jl")
 include("convert/metts_jl.jl")
 include("zenodo.jl")
+include("catalogue_html.jl")
+include("serve.jl")
 
 export Ensemble, nsites, nsamples, lattice, validate
 export Lattice, parse_lattice, read_lattice, lattice_couplings, square_lattice_toml
@@ -44,5 +46,6 @@ export add_remote!, clear_remotes!
 export initial_states, state_labels
 export from_legacy_cpp, from_samples_txt, from_ttj_run
 export publish_zenodo
+export serve
 
 end # module

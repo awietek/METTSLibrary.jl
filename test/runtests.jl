@@ -3,6 +3,8 @@ using Test
 using HDF5
 using TOML
 using Random
+using Sockets
+using JSON
 
 const ML = METTSLibrary
 
@@ -326,6 +328,62 @@ end
     @test length(initial_states(e, 3; thin=2)) == 3
     @test_throws ArgumentError initial_states(e, 100)
     @test_throws ArgumentError initial_states(e; basis="X")
+end
+
+@testset "serve: catalogue routes" begin
+    mktempdir() do root
+        write_ensemble(root, synthetic_tj(beta=2.0); tag="a")
+        write_ensemble(root, synthetic_tj(beta=4.0, seed=2); tag="b")
+        build_index(root)
+
+        port = 8000 + (getpid() % 1000)
+        task = @async METTSLibrary.serve(root; port=port, verbose=false)
+        sleep(2)
+
+        function get_(p)
+            s = Sockets.connect("127.0.0.1", port)
+            write(s, "GET $p HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            raw = read(s, String); close(s)
+            i = findfirst("\r\n\r\n", raw)
+            (head = raw[1:i[1]-1], body = raw[i[end]+1:end])
+        end
+
+        page = get_("/")
+        @test occursin("200 OK", page.head)
+        @test occursin("<title>METTS library</title>", page.body)
+
+        s = JSON.parse(get_("/api/summary").body)
+        @test s["nfiles"] == 2
+        @test length(s["projects"]) == 1
+        proj = s["projects"][1]["project"]
+        lat  = first(keys(s["projects"][1]["lattices"]))
+
+        l = JSON.parse(get_("/api/lattice?project=$proj&lattice=$lat").body)
+        @test l["nsites"] > 0
+        @test length(l["coordinates"]) == l["nsites"]
+        # every bond must point at a site that exists, or the drawing is wrong
+        @test all(all(0 .<= b["sites"] .< l["nsites"]) for b in l["bonds"])
+
+        ens = JSON.parse(get_("/api/ensembles?project=$proj&lattice=$lat").body)
+        @test !isempty(ens["runs"])
+        @test issorted([r["temperature"] for r in ens["runs"]])
+
+        d = JSON.parse(get_("/api/series?path=$(replace(ens["runs"][1]["path"], "=" => "%3D"))").body)
+        @test d["nsamples"] > 0
+        for (_, v) in d["observables"]
+            @test length(v) == d["nsamples"]          # one value per sample
+        end
+
+        # a path from the browser is resolved through the index, never joined
+        # onto the root, so it cannot escape the library
+        for bad in ("../../../etc/passwd", "/etc/passwd")
+            @test haskey(JSON.parse(get_("/api/series?path=$(replace(bad, "/" => "%2F"))").body),
+                         "error")
+        end
+        @test occursin("404", get_("/api/nope").head)
+
+        schedule(task, InterruptException(); error=true)
+    end
 end
 
 @testset "index, query, local fetch" begin
