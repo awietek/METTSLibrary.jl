@@ -2,3 +2,7 @@ Manifest.toml
 .DS_Store
 docs/build/
 docs/Manifest.toml
+
+# python bytecode from the lattice generator
+__pycache__/
+*.pyc

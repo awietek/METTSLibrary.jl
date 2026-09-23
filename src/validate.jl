@@ -71,19 +71,35 @@ function validate(e::Ensemble)
     return e
 end
 
-# Particle numbers of every Z-basis sample must match the declared sector.
+# Sample particle numbers must match the declared sector.
+#
+# The two halves of this check have different scope, and conflating them hides
+# real corruption. **Total charge `n` is conserved by every collapse basis** --
+# an X collapse rotates spin, it does not move electrons -- so `n` is checkable
+# in ANY basis. `nup`, `ndn` and `sz2` are conserved only by a Z collapse, so
+# they stay restricted to Z samples.
+#
+# Checking `n` everywhere is what catches a dump's unwritten `ProductState`
+# rows: the legacy code writes that dataset extensibly, and a row allocated but
+# never filled reads back as all-empty, i.e. n=0. Eight such rows turned up in
+# hubbard.triangular.metts, in an all-X project where the old Z-only check
+# returned immediately and verified nothing at all.
 function _check_sector!(errs, e::Ensemble)
-    zidx = findfirst(==("Z"), e.collapse_bases)
-    zidx === nothing && return
     nup_of = [l in ("Up", "UpDn") ? 1 : 0 for l in e.local_states]
     ndn_of = [l in ("Dn", "UpDn") ? 1 : 0 for l in e.local_states]
-    expected(nup, ndn) = Dict("nup" => nup, "ndn" => ndn, "n" => nup + ndn, "sz2" => nup - ndn)
-    bad = 0
+    zidx = findfirst(==("Z"), e.collapse_bases)
+    wantn = get(e.sector, "n", nothing)
+    badn = 0; badz = 0
     for j in 1:nsamples(e)
-        e.basis[j] == zidx - 1 || continue
         col = @view e.states[:, j]
-        exp = expected(sum(nup_of[s + 1] for s in col), sum(ndn_of[s + 1] for s in col))
-        all(get(exp, k, v) == v for (k, v) in e.sector) || (bad += 1)   # unknown keys are not checked
+        nup = sum(nup_of[s + 1] for s in col)
+        ndn = sum(ndn_of[s + 1] for s in col)
+        wantn === nothing || nup + ndn == wantn || (badn += 1)
+        if zidx !== nothing && e.basis[j] == zidx - 1
+            exp = Dict("nup" => nup, "ndn" => ndn, "n" => nup + ndn, "sz2" => nup - ndn)
+            all(get(exp, k, v) == v for (k, v) in e.sector) || (badz += 1)   # unknown keys are not checked
+        end
     end
-    bad > 0 && push!(errs, "$bad Z-basis sample(s) violate the declared sector $(e.sector)")
+    badn > 0 && push!(errs, "$badn sample(s) violate the declared particle number n=$wantn")
+    badz > 0 && push!(errs, "$badz Z-basis sample(s) violate the declared sector $(e.sector)")
 end
