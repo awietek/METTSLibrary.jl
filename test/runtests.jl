@@ -347,28 +347,40 @@ end
             i = findfirst("\r\n\r\n", raw)
             (head = raw[1:i[1]-1], body = raw[i[end]+1:end])
         end
+        # paths carry '=' and '/', both of which must survive the round trip
+        enc(s) = replace(s, "%" => "%25", "=" => "%3D", "/" => "%2F", " " => "%20")
 
         page = get_("/")
         @test occursin("200 OK", page.head)
         @test occursin("<title>METTS library</title>", page.body)
 
-        s = JSON.parse(get_("/api/summary").body)
-        @test s["nfiles"] == 2
-        @test length(s["projects"]) == 1
-        proj = s["projects"][1]["project"]
-        lat  = first(keys(s["projects"][1]["lattices"]))
+        # browsing follows the library layout one level at a time, so walking
+        # down from the root must reach a run through exactly the directory
+        # components of that run's path
+        root = JSON.parse(get_("/api/browse").body)
+        @test root["libfiles"] == 2
+        @test root["childLevel"] == "model"
+        @test !isempty(root["children"])
 
-        l = JSON.parse(get_("/api/lattice?project=$proj&lattice=$lat").body)
+        node = root
+        levels = String[]
+        while node["childLevel"] != "run"
+            push!(levels, node["childLevel"])
+            child = node["children"][1]
+            node = JSON.parse(get_("/api/browse?path=$(enc(child["path"]))").body)
+        end
+        @test levels == ["model", "project", "lattice", "parameters", "sector", "temperature"]
+        @test length(node["crumbs"]) == 6
+        run1 = node["children"][1]
+        @test haskey(run1, "runpath")
+
+        l = JSON.parse(get_("/api/lattice?path=$(enc(node["lattice"]))").body)
         @test l["nsites"] > 0
         @test length(l["coordinates"]) == l["nsites"]
         # every bond must point at a site that exists, or the drawing is wrong
         @test all(all(0 .<= b["sites"] .< l["nsites"]) for b in l["bonds"])
 
-        ens = JSON.parse(get_("/api/ensembles?project=$proj&lattice=$lat").body)
-        @test !isempty(ens["runs"])
-        @test issorted([r["temperature"] for r in ens["runs"]])
-
-        d = JSON.parse(get_("/api/series?path=$(replace(ens["runs"][1]["path"], "=" => "%3D"))").body)
+        d = JSON.parse(get_("/api/series?path=$(enc(run1["runpath"]))").body)
         @test d["nsamples"] > 0
         for (_, v) in d["observables"]
             @test length(v) == d["nsamples"]          # one value per sample
