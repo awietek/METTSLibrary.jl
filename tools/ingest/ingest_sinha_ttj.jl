@@ -66,6 +66,12 @@ const ROOT = "/data/condmat/asinha/Research/Projects/metts.cylinder.tj.tjp/" *
 const PARAMDIR = "/home/asinha/Research/Projects/ttJ/METTS"
 const DRIVER = "ttJ/METTS/scripts/compute_metts_t_tp_J_{1..5}.jl"
 
+# Dataset name in the run's h5 -> the library's observable name. The driver
+# writes `svn` for entropy_von_neumann(psi, N/2); the library calls that
+# `entropy` everywhere else, and a project spelling it differently would be
+# invisible to `ensembles(...)` queries and to the catalogue's observable list.
+const OBS_NAMES = ("energy" => "energy", "svn" => "entropy")
+
 const RE_LW   = r"^L\.(\d+)\.W\.(\d+)$"
 const RE_J    = r"^J\.([0-9.]+)$"
 const RE_T1   = r"^t\.([0-9.]+)$"
@@ -266,9 +272,9 @@ end
 """
     observables(h5path, nsamp; shift, maxgb) -> (obs, nkeep, status)
 
-`energy` and `svn` for a run, aligned to its states. Returns how many samples
-survive: with the one-step shift the last sample loses its energy and is
-dropped, so `nkeep` can be `nsamp - 1`.
+`energy` and `entropy` (the run's `svn`) for one run, aligned to its states.
+Returns how many samples survive: with the one-step shift the last sample loses
+its energy and is dropped, so `nkeep` can be `nsamp - 1`.
 
 Only the two scalar datasets are read, BY NAME -- never the correlators, and
 never anything that enumerates the group hierarchy. That is what keeps the cost
@@ -282,8 +288,8 @@ function observables(h5path::AbstractString, nsamp::Int; shift::Bool, maxgb::Flo
     raw = try
         h5open(h5path, "r") do h
             d = Dict{String,Vector{Float64}}()
-            for k in ("energy", "svn")
-                haskey(h, k) && (d[k] = Float64.(vec(read(h[k]))))
+            for (src, name) in OBS_NAMES
+                haskey(h, src) && (d[name] = Float64.(vec(read(h[src]))))
             end
             d
         end
@@ -441,7 +447,7 @@ function main()
                         " (sector n=", e.sector["n"], " => ",
                         nsites(e) - e.sector["n"], "), tau=", pinfo.tau,
                         " nwarm=", pinfo.nwarm, ", energy ", st,
-                        haskey(e.observables, "svn") ? " +svn" : "")
+                        haskey(e.observables, "entropy") ? " +entropy" : "")
             else
                 write_ensemble(out, e)
             end
