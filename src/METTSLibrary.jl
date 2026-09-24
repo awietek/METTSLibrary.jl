@@ -19,7 +19,6 @@ using SHA
 using JSON
 using Dates
 using Printf
-using Random
 using Downloads
 
 include("schema.jl")
@@ -43,7 +42,7 @@ export write_ensemble, read_ensemble
 export default_tag, TAG_FIELDS
 export build_index, load_index, ensembles, load
 export add_remote!, clear_remotes!
-export initial_states, state_labels
+export state_labels
 export from_legacy_cpp, from_samples_txt, from_ttj_run
 export publish_zenodo
 export serve

@@ -22,10 +22,10 @@ found = ensembles(model = "tJ", lattice_name = "square.L32.W4.cyl", beta = 4.0, 
 # fetch, verify and read one
 e = load(found[1])
 
-# product states as 1-based ITensors indices, ready for METTS.jl
-σs = initial_states(e, 100; basis = "Z", thin = 5)
+# the product states: (nsites, nsamples), 0-based into e.local_states
+e.states
 
-# or one sample as state names for MPS(sites, ...)
+# one sample as ITensors state names, ready for MPS(sites, ...)
 names = state_labels(e, 1)
 ```
 

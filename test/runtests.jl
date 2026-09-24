@@ -318,16 +318,7 @@ end
     @test all(1 .<= s .<= 3)
     @test state_labels(e, 1) == e.local_states[s]
     @test count(==("Up"), state_labels(e, 1)) == 3
-
-    ss = initial_states(e, 4; rng=MersenneTwister(0))
-    @test length(ss) == 4
-    @test all(length(v) == nsites(e) for v in ss)
-    @test length(initial_states(e)) == nsamples(e)
-    @test initial_states(e)[1] == s
-    @test length(initial_states(e; thin=2)) == 5
-    @test length(initial_states(e, 3; thin=2)) == 3
-    @test_throws ArgumentError initial_states(e, 100)
-    @test_throws ArgumentError initial_states(e; basis="X")
+    @test all(state_labels(e, j) ⊆ e.local_states for j in 1:nsamples(e))
 end
 
 @testset "serve: catalogue routes" begin

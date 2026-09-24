@@ -80,34 +80,26 @@ end
 
 ## Product states for METTS.jl
 
-[`initial_states`](@ref) returns states as vectors of 1-based ITensors state
-indices, which is what `METTS.random_product_state` returns as well, so it
-is a drop-in replacement for the start of a chain.
+The states are `e.states`, an `(nsites, nsamples)` `UInt8` matrix of 0-based
+indices into `e.local_states`. A file is one run in chain order, so column `j`
+is step `j`.
+
+[`state_labels`](@ref) turns one column into the ITensors state names, which
+is what `MPS` takes:
 
 ```julia
-σs = initial_states(e, 100; basis = "Z", thin = 5, rng = MersenneTwister(1))
-```
-
-- `n` states are drawn without replacement from the eligible samples.
-  Without `n` you get all eligible samples in file order.
-- `basis` restricts to samples collapsed in that basis.
-- `thin` keeps only every `thin`-th step along each chain, which reduces the
-  autocorrelation between the states you draw.
-
-Turning a state into an MPS with ITensors:
-
-```julia
-using ITensors, ITensorMPS, METTS
+using ITensors, ITensorMPS
 sites = siteinds("tJ", nsites(e); conserve_qns = true)
-σ = σs[1]
-names = [local_state_string(sites[i], σ[i]) for i in 1:nsites(e)]   # METTS.jl helper
-psi = MPS(sites, names)
+psi = MPS(sites, state_labels(e, j))
 ```
 
-Or directly with the label strings the library stores:
+Do the index arithmetic yourself only if you need the integers:
+`Int.(e.states[:, j]) .+ 1` are the 1-based ITensors indices. Samples within
+one chain are correlated, so take every few steps rather than all of them
+when you want independent starting points:
 
 ```julia
-psi = MPS(sites, state_labels(e, j))
+σs = [state_labels(e, j) for j in 1:5:nsamples(e)]
 ```
 
 ## The collapse basis matters
@@ -120,9 +112,9 @@ sample must be turned into ``(|\!\uparrow\rangle \pm |\!\downarrow\rangle)/\sqrt
 on each occupied site by hand, and such a state is not an ``S^z`` eigenstate
 and cannot be built with `conserve_qns = true`.
 
-Use `basis = "Z"` in `initial_states` unless you know what you are doing,
-and check `entry["collapse_bases"]` before choosing an ensemble. Particle
-numbers are meaningful in both bases, magnetization only in Z.
+Check `entry["collapse_bases"]` before choosing an ensemble, and prefer a Z
+ensemble unless you know what you are doing. Particle numbers are meaningful
+in both bases, magnetization only in Z.
 
 ## Recomputing observables from stored states
 
@@ -135,9 +127,8 @@ so no Markov chain is needed. This is the main payoff of the library.
 
 ```julia
 using METTS
-σs = initial_states(e; basis = "Z")
-results = map(σs) do σ
-    psi = MPS(sites, [local_state_string(sites[i], σ[i]) for i in eachindex(σ)])
+results = map(1:nsamples(e)) do j
+    psi = MPS(sites, state_labels(e, j))
     psi = timeevo_tdvp_extend(H, psi, -e.beta / 2; tau = 0.1, normalize = true, maxm = 1000)
     inner(psi', O, psi)
 end

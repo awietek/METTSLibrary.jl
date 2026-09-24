@@ -46,8 +46,9 @@ e = load(found[1])
 using Statistics
 mean(e.observables["energy"]), std(e.observables["energy"])
 
-# 100 product states as ITensors state indices, thinned along the chain
-σs = initial_states(e, 100; basis = "Z", thin = 5)
+# the product states; sample j as ITensors state names for MPS(sites, ...)
+e.states                  # (nsites, nsamples), 0-based into e.local_states
+state_labels(e, 1)
 ```
 
 Continue with [Getting started](@ref).

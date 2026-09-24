@@ -43,7 +43,6 @@ clear_remotes!
 ## Product states
 
 ```@docs
-initial_states
 state_labels
 ```
 
