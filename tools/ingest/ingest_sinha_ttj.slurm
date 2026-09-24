@@ -53,6 +53,7 @@ export SHARD=0
 export WANT_TAU=0.2        # only runs a params line proves ran at this tau
 export ENERGY_SHIFT=1      # sample[j] <-> energy[j+1]; see the driver's header
 export LARGE_H5_GB=Inf     # no size guard: a named-dataset read is O(1) in size
+export REQUIRE_ENERGY=1    # a run with no energy series is not written at all
 
 PKG=/home/awietek/julia-packages/dev/METTSLibrary
 DRIVER=$PKG/tools/ingest/ingest_sinha_ttj.jl

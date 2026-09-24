@@ -364,6 +364,8 @@ function main()
     shift   = get(ENV, "ENERGY_SHIFT", "1") == "1"
     # No size limit by default: a named-dataset read is O(1) in the file size.
     maxgb   = parse(Float64, get(ENV, "LARGE_H5_GB", "Inf"))
+    # A run with no energy is not written; REQUIRE_ENERGY=0 to keep it anyway.
+    reqE    = get(ENV, "REQUIRE_ENERGY", "1") == "1"
     wanted  = parse(Float64, get(ENV, "WANT_TAU", "0.2"))
 
     pars = load_params(PARAMDIR)
@@ -425,16 +427,23 @@ function main()
     println("energy pairing: ", shift ? "sample[j] <-> energy[j+1]" : "unshifted",
             "   large-h5 cutoff: ", maxgb, " GB")
 
-    nok = 0; nerr = 0; nskipped = 0; tot = 0; ndrop = 0
+    nok = 0; nerr = 0; nskipped = 0; tot = 0; ndrop = 0; nnoen = 0
     stat = Dict{String,Int}()
     for (i, (r, pinfo)) in enumerate(sel)
         try
             e = convert_one(r, pinfo, project; shift = shift, maxgb = maxgb)
             rel = ML.relpath_for(e)
-            tot += nsamples(e)
             st = e.provenance["energy_alignment"]
             key = replace(String(st), r"_\d+$" => "_N")
             stat[key] = get(stat, key, 0) + 1
+            # An ensemble with no energy is states without thermodynamics, and
+            # the library's rule is that energy is always present. Such runs are
+            # not written at all rather than written and later pruned.
+            if reqE && !haskey(e.observables, "energy")
+                nnoen += 1
+                continue
+            end
+            tot += nsamples(e)
             ndrop += e.provenance["samples_dropped"]
             if resume && !dry && isfile(joinpath(out, rel))
                 nskipped += 1; continue
@@ -459,6 +468,7 @@ function main()
         i % 100 == 0 && !dry && println("  ... $i/$(length(sel))")
     end
     println("done: ok=", nok, " skipped=", nskipped, " err=", nerr,
+            " no-energy-not-written=", nnoen,
             " samples=", tot, " samples-dropped-for-alignment=", ndrop)
     println("energy alignment:")
     for (k, v) in sort(collect(stat); by = x -> -x[2])
@@ -467,4 +477,9 @@ function main()
     nerr == 0 || exit(1)
 end
 
-main()
+# Guarded, like the other ingest drivers: `include`ing this file to inspect it
+# must not launch an ingest. Without the guard, an include with OUT unset
+# writes ensembles relative to the current directory.
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
