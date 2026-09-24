@@ -82,6 +82,15 @@ svg{display:block;max-width:100%}
 .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-top:7px}
 .legend i{display:inline-block;width:16px;height:3px;vertical-align:middle;margin-right:5px}
 .swatch{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:middle}
+.snip{margin-top:12px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.snip .hd{display:flex;align-items:center;gap:10px;padding:5px 10px;background:var(--bg);
+          border-bottom:1px solid var(--line);font-size:11.5px;color:var(--dim)}
+.snip .hd button{margin-left:auto;font:inherit;font-size:11.5px;padding:1px 9px;cursor:pointer;
+                 border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--ink)}
+.snip .hd button:hover{border-color:var(--accent);color:var(--accent)}
+.snip pre{margin:0;padding:10px 12px;overflow-x:auto;font-family:var(--mono);
+          font-size:11.5px;line-height:1.55;white-space:pre}
+.snip .cm{color:var(--dim)}
 .md{font-size:13.5px;max-width:78ch}
 .md h3,.md h4,.md h5{margin:18px 0 7px;font-size:14px;font-weight:650}
 .md h3:first-child{margin-top:0}
@@ -113,6 +122,22 @@ const fmt = n => n==null ? "–" : n.toLocaleString();
 const g = (n,d=4) => n==null ? "–" :
   (Math.abs(n)>=1e4||(n!==0&&Math.abs(n)<1e-3) ? n.toExponential(2) : +n.toFixed(d));
 const enc = encodeURIComponent;
+
+// Every plot is backed by a few lines of Julia. Show them, filled in with the
+// path actually on screen, so the page answers "how do I get at this myself"
+// without a trip to the docs.
+function snippet(title, code){
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const html = esc(code).replace(/^(\s*#.*)$/gm, '<span class="cm">$1</span>');
+  return `<div class="snip"><div class="hd">${title}
+      <button onclick="copySnip(this)">copy</button></div><pre>${html}</pre></div>`;
+}
+function copySnip(btn){
+  const t = btn.closest(".snip").querySelector("pre").innerText;
+  navigator.clipboard?.writeText(t).then(
+    () => { btn.textContent = "copied"; setTimeout(()=>btn.textContent="copy", 1200); },
+    () => { btn.textContent = "select manually"; });
+}
 
 // the address bar follows the library path, so a level can be linked and the
 // browser's back button does the obvious thing
@@ -212,7 +237,8 @@ function renderLevel(d){
   const latBox = d.lattice ? `<div class="panel" id="latpanel"><h2 class="sec"
         style="margin-top:0">lattice</h2><div id="latplot"></div>
         <div class="legend" id="latlegend"></div>
-        <div class="dim mono" id="latmeta" style="margin-top:8px"></div></div>` : "";
+        <div class="dim mono" id="latmeta" style="margin-top:8px"></div>
+        <div id="latsnip"></div></div>` : "";
   // The project page is the one place to put the project's own README: it
   // says who computed the runs and what is known about their quality, which is
   // what a reader needs before using any of it.
@@ -334,7 +360,8 @@ function renderRuns(d){
     <div class="grow" style="flex:0 1 770px"><div class="panel" id="latpanel">
       <h2 class="sec" style="margin-top:0">lattice</h2><div id="latplot"></div>
       <div class="legend" id="latlegend"></div>
-      <div class="dim mono" id="latmeta" style="margin-top:8px"></div></div></div>
+      <div class="dim mono" id="latmeta" style="margin-top:8px"></div>
+      <div id="latsnip"></div></div></div>
   </div>
   <div class="panel" id="seriespanel">
     <h2 class="sec" style="margin-top:0">time series</h2>
@@ -344,7 +371,8 @@ function renderRuns(d){
       <span class="dim" id="plotnote"></span>
     </div>
     <div id="plot"><div class="empty">Loading…</div></div>
-    <div id="runlegend" class="legend"></div></div>`;
+    <div id="runlegend" class="legend"></div>
+    <div id="datasnip"></div></div>`;
   $("#pickall").onchange = e => {
     document.querySelectorAll(".pick").forEach(c => c.checked = e.target.checked);
     refreshSeries();
@@ -396,6 +424,48 @@ function draw(){
       `<div class="empty">no run in this selection stores '${obs}'</div>`;
       $("#runlegend").innerHTML = ""; return; }
   drawSeries(series, obs, cum);
+  dataSnippet(picked.map(x => x.r), obs);
+}
+
+// The snippet under the data plot answers the two things someone actually
+// wants from a run: the per-sample numbers that are drawn, and the product
+// states themselves -- which are the point of the library, and are not
+// plotted anywhere.
+function dataSnippet(runs, obs){
+  const el = $("#datasnip"); if(!el) return;
+  const one = runs[0];
+  const parts = one.runpath.split("/");
+  const model = parts[0], project = parts[1], latname = parts[2];
+  const T = one.temperature, sec = one.sector || {}, par = one.parameters || {};
+  const kw = Object.entries(par).sort().map(([k,v])=>`${k} = ${g(v)}`).join(",\n                  ");
+  const seckw = Object.entries(sec).sort().map(([k,v])=>`${k} = ${v}`).join(", ");
+  const many = runs.length > 1;
+  const code =
+`using METTSLibrary
+
+# the ${many ? runs.length + " runs plotted above" : "run plotted above"}: one ensemble, ${many ? "one entry per seed" : "one seed"}
+found = ensembles(model = "${model}",
+                  project = "${project}",
+                  lattice_name = "${latname}",
+                  temperature = ${g(T)},
+                  ${kw}${seckw ? ",\n                  " + seckw : ""})
+${many ? "es = load.(found)                  # all " + runs.length + " of them"
+       : "e  = load(found[1])"}
+
+# --- the series that is plotted
+${many ? `[mean(e.observables["${obs}"]) for e in es]   # one mean per run`
+       : `e.observables["${obs}"]           # one value per sample, in chain order`}
+${many ? "" : `nsamples(e)                       # ${one.nsamples} samples
+keys(e.observables)               # everything this run stores`}
+
+# --- the product states (what the library is for)
+${many ? "e = es[1]\n" : ""}e.states                          # nsites x nsamples, 0-based into e.local_states
+e.local_states                    # e.g. ["Emp", "Up", "Dn", "UpDn"]
+state_labels(e, 1)                # sample 1 as names, ready for MPS(sites, ...)
+
+# nwarm was 0, so early samples are burn-in -- drop some before averaging
+mean(e.observables["${obs}"][end÷2:end])`;
+  el.innerHTML = snippet(many ? `get these ${runs.length} runs` : "get this run", code);
 }
 
 function drawSeries(series, name, cum){
@@ -502,7 +572,28 @@ async function loadLattice(p){
     + `<span><i style="background:var(--dim);opacity:.5"></i>wraps the boundary</span>`;
   $("#latmeta").textContent =
     `${lat.name} — ${lat.nsites} sites, ${lat.bonds.length} bonds, couplings ${(lat.couplings||[]).join(", ")}`;
+
+  const [model, project, latname] = p.split("/");
+  const code =
+`using METTSLibrary
+
+# any run on this lattice; the lattice is shared by all of them
+entry = ensembles(model = "${model}",
+                  project = "${project}",
+                  lattice_name = "${latname}")[1]
+e = load(entry)
+
+lat = lattice(e)                  # parsed from the lattice file
+lat.coordinates                   # ${lat.dim} x ${lat.nsites} matrix, one column per site
+lat.interactions                  # ${lat.bonds.length} entries: (coupling, type, sites), sites 0-based
+lattice_couplings(e.lattice)      # ${JSON_couplings(lat)}
+
+# the values those couplings take for this run
+e.parameters`;
+  const el2 = document.getElementById("latsnip");
+  if(el2) el2.innerHTML = snippet("get this lattice", code);
 }
+function JSON_couplings(lat){ return JSON.stringify(lat.couplings || []); }
 
 render(location.hash.slice(1));
 </script>
