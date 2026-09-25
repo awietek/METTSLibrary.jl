@@ -33,7 +33,12 @@ _kv_dir_or(d, default::AbstractString) = (s = _kv_dir(d); isempty(s) ? default :
 # key like t_prime survives and a value may be negative or non-numeric.
 const _KV_RE = r"([A-Za-z][A-Za-z0-9_]*)=(.*?)(?=_[A-Za-z][A-Za-z0-9_]*=|$)"
 
-_kv_parse(s::AbstractString) = s == "default" ? Pair{String,String}[] :
+# "canonical" is the empty SECTOR: no quantum number is fixed, so the ensemble
+# is the canonical one at its temperature. "default" is the empty parameter
+# set -- a different thing, and essentially never seen, since every coupling
+# the lattice declares must have a value. Both read back as empty.
+_kv_parse(s::AbstractString) = (s == "canonical" || s == "default") ?
+    Pair{String,String}[] :
     [String(m.captures[1]) => String(m.captures[2]) for m in eachmatch(_KV_RE, s)]
 # Both temperature and inverse temperature, because both get read: T is the
 # value runs are specified with, beta is what the file stores.
@@ -110,7 +115,7 @@ function relpath_for(e::Ensemble; tag::AbstractString=default_tag(e))
             "$what must be non-empty and contain no slashes or whitespace, got '$s'"))
     end
     return joinpath(e.model, e.project, e.lattice_name,
-                    _kv_dir_or(e.parameters, "default"), _kv_dir_or(e.sector, "default"),
+                    _kv_dir_or(e.parameters, "default"), _kv_dir_or(e.sector, "canonical"),
                     _beta_dir(e), tag * ".h5")
 end
 

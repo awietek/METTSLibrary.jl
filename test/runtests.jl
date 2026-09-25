@@ -207,6 +207,7 @@ end
     @test ML._kv_parse(ML._kv_dir(Dict("t_prime" => -0.3, "J" => 0.4))) ==
           ["J" => "0.4", "t_prime" => "-0.3"]
     @test ML._kv_parse("default") == Pair{String,String}[]
+    @test ML._kv_parse("canonical") == Pair{String,String}[]
     # and they round-trip with what relpath_for builds
     @test ML.layout_names(joinpath("/lib", ML.relpath_for(e; tag="x"))) ==
           (e.model, e.project, e.lattice_name)
