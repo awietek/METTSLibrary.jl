@@ -36,7 +36,7 @@ module load julia/1.12.0 2>/dev/null
 
 export JULIA_DEPOT_PATH=/home/awietek/julia-packages
 export OUT=/data/condmat/awietek/Data/mettslibrary
-export PROJECT=tj.mixed.dimension
+export PROJECT=wietek.tj.mixed.dimension
 export RESUME=1
 export DRYRUN=0
 export NSHARDS=${SLURM_ARRAY_TASK_COUNT:-20}

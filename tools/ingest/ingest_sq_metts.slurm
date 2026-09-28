@@ -8,7 +8,7 @@
 #SBATCH --constraint=icelake
 #SBATCH --output=/home/awietek/metts-ingest/logs/%x.%A_%a.log
 
-# Ingest hubbard.square.metts into Hubbard/hubbard.square.metts: Hubbard on
+# Ingest hubbard.square.metts into Hubbard/wietek.hubbard.square.metts: Hubbard on
 # 16x4 and 32x4 square cylinders with a diagonal t'. The 4x4 lattice is a
 # benchmark and is excluded in the driver.
 #
@@ -35,7 +35,7 @@ module load julia/1.12.0 2>/dev/null
 
 export JULIA_DEPOT_PATH=/home/awietek/julia-packages
 export OUT=/data/condmat/awietek/Data/mettslibrary
-export PROJECT=hubbard.square.metts
+export PROJECT=wietek.hubbard.square.metts
 export RESUME=1
 export NSHARDS=${NSHARDS:-20}
 export SHARD=${SLURM_ARRAY_TASK_ID:-0}

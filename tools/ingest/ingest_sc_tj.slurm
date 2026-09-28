@@ -43,7 +43,7 @@ module load julia/1.12.0 2>/dev/null
 
 export JULIA_DEPOT_PATH=/home/awietek/julia-packages
 export OUT=/data/condmat/awietek/Data/mettslibrary
-export PROJECT=superconductors
+export PROJECT=wietek.superconductors
 export RESUME=1
 export DRYRUN=0
 # NSHARDS must be the FULL array width, not the number of tasks in this

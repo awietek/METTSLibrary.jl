@@ -1,4 +1,4 @@
-# Ingest `hubbard.square.metts` into Hubbard/hubbard.square.metts.
+# Ingest `hubbard.square.metts` into Hubbard/wietek.hubbard.square.metts.
 #
 # Hubbard on square cylinders with a diagonal t', from the Flatiron project of
 # the same name. Much the easiest ingest so far, because the two things that
@@ -136,7 +136,7 @@ end
 
 function main()
     out     = get(ENV, "OUT", "")
-    project = get(ENV, "PROJECT", "hubbard.square.metts")
+    project = get(ENV, "PROJECT", "wietek.hubbard.square.metts")
     maxf    = parse(Int, get(ENV, "MAXFILES", "0"))
     dry     = get(ENV, "DRYRUN", "0") == "1"
     resume  = get(ENV, "RESUME", "0") == "1"

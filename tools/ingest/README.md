@@ -9,11 +9,11 @@ reproducible the moment that directory is tidied.
 
 | driver | project on the cluster | in the library |
 |---|---|---|
-| `ingest_optical.jl` | `hubbard.optical.lattice` (t-J despite the name) | `tJ/tj.mixed.dimension` |
-| `ingest_sc_tj.jl` | `superconductors/tj` + `tj_bkup` | `tJ/superconductors` |
-| `ingest_sc_hubbard.jl` | `superconductors/hubbard` + `hubbard_bkup` | `Hubbard/superconductors` |
+| `ingest_optical.jl` | `hubbard.optical.lattice` (t-J despite the name) | `tJ/wietek.tj.mixed.dimension` |
+| `ingest_sc_tj.jl` | `superconductors/tj` + `tj_bkup` | `tJ/wietek.superconductors` |
+| `ingest_sc_hubbard.jl` | `superconductors/hubbard` + `hubbard_bkup` | `Hubbard/wietek.superconductors` |
 | `ingest_kagome.jl` | `kagome.superconductors/hubbard` (METTS.jl, `samples.txt`) | **not ingested — see below** |
-| `ingest_triangular.jl` | `hubbard.triangular.metts.v2` | `Hubbard/hubbard.triangular.metts` |
+| `ingest_triangular.jl` | `hubbard.triangular.metts.v2` | `Hubbard/wietek.hubbard.triangular.metts` |
 
 Each one enumerates the dumps, parses the metadata out of the paths, resolves
 the lattice, deduplicates, checks tag uniqueness, and converts. They share a

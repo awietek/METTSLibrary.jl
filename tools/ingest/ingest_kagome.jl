@@ -24,7 +24,7 @@
 # the lattice declare a J that `validate` then demands a parameter for.
 #
 # U and V are therefore not lattice couplings either; like U in
-# Hubbard/superconductors they ride in `parameters`, which validate allows to
+# Hubbard/wietek.superconductors they ride in `parameters`, which validate allows to
 # name more than the lattice does. V acts on the lattice's own bond list.
 
 using METTSLibrary, HDF5, TOML

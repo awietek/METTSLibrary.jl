@@ -9,7 +9,7 @@
 #SBATCH --output=/home/awietek/metts-ingest/logs/%x.%A_%a.log
 
 # Ingest the `thermo` subtree of hubbard.triangular.metts.v2 into
-# Hubbard/hubbard.triangular.metts: 4,613 runs of 5,095, median 245 samples.
+# Hubbard/wietek.hubbard.triangular.metts: 4,613 runs of 5,095, median 245 samples.
 # The other three METTS subtrees are a different campaign that never dumped
 # collapsed states -- see the header of ingest_triangular.jl.
 #
@@ -44,7 +44,7 @@ module load julia/1.12.0 2>/dev/null
 
 export JULIA_DEPOT_PATH=/home/awietek/julia-packages
 export OUT=/data/condmat/awietek/Data/mettslibrary
-export PROJECT=hubbard.triangular.metts
+export PROJECT=wietek.hubbard.triangular.metts
 export RESUME=1
 export NSHARDS=${NSHARDS:-20}
 export SHARD=${SLURM_ARRAY_TASK_ID:-0}

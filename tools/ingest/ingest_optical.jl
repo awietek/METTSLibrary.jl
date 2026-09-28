@@ -104,7 +104,7 @@ function main()
     # over: the runs are t-J, not Hubbard. In the library it is named for what it
     # is -- t-J with hopping and exchange tunable independently along x and y.
     # The cluster directories are NOT renamed; provenance records where it came from.
-    project = get(ENV, "PROJECT", "tj.mixed.dimension")
+    project = get(ENV, "PROJECT", "wietek.tj.mixed.dimension")
     maxf    = parse(Int, get(ENV, "MAXFILES", "0"))
     dry     = get(ENV, "DRYRUN", "0") == "1"
 

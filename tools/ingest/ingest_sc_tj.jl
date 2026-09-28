@@ -101,7 +101,7 @@ end
 
 function main()
     out     = get(ENV, "OUT", "")
-    project = get(ENV, "PROJECT", "superconductors")
+    project = get(ENV, "PROJECT", "wietek.superconductors")
     maxf    = parse(Int, get(ENV, "MAXFILES", "0"))
     dry     = get(ENV, "DRYRUN", "0") == "1"
     resume  = get(ENV, "RESUME", "0") == "1"

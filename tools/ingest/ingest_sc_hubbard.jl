@@ -1,5 +1,5 @@
 # Ingest the Hubbard half of the `superconductors` project, into
-# Hubbard/superconductors/ -- the same project name under a different model
+# Hubbard/wietek.superconductors/ -- the same project name under a different model
 # directory, which is exactly what the <model>/<project>/ layout is for.
 #
 #   dump path:  <tree>/<latdir>/t.<t>.tp.<tp>.U.<U>.holes.<h>/T.<T>/outfile.….dump.h5
@@ -101,7 +101,7 @@ end
 
 function main()
     out     = get(ENV, "OUT", "")
-    project = get(ENV, "PROJECT", "superconductors")
+    project = get(ENV, "PROJECT", "wietek.superconductors")
     maxf    = parse(Int, get(ENV, "MAXFILES", "0"))
     dry     = get(ENV, "DRYRUN", "0") == "1"
     resume  = get(ENV, "RESUME", "0") == "1"

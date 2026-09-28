@@ -8,7 +8,7 @@
 #SBATCH --constraint=icelake
 #SBATCH --output=/home/awietek/metts-ingest/logs/%x.%A_%a.log
 
-# Ingest the Hubbard half of `superconductors` into Hubbard/superconductors:
+# Ingest the Hubbard half of `superconductors` into Hubbard/wietek.superconductors:
 # ~5000 distinct runs across hubbard/metts/{outfiles,outfiles.metts} and
 # hubbard_bkup, deduplicated by step count.
 #
@@ -35,7 +35,7 @@ module load julia/1.12.0 2>/dev/null
 
 export JULIA_DEPOT_PATH=/home/awietek/julia-packages
 export OUT=/data/condmat/awietek/Data/mettslibrary
-export PROJECT=superconductors
+export PROJECT=wietek.superconductors
 export RESUME=1
 export DRYRUN=0
 export NSHARDS=${NSHARDS:-20}

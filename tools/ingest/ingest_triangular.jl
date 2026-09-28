@@ -1,4 +1,4 @@
-# Ingest `hubbard.triangular.metts.v2` into Hubbard/hubbard.triangular.metts.
+# Ingest `hubbard.triangular.metts.v2` into Hubbard/wietek.hubbard.triangular.metts.
 #
 # The cluster name carries a `.v2` that means nothing outside the author's own
 # history, so the library drops it; provenance.source_path keeps the origin.
@@ -217,7 +217,7 @@ family(r) = (r.lattice_name, r.parameters["T"], r.parameters["Tp"],
 
 function main()
     out     = get(ENV, "OUT", "")
-    project = get(ENV, "PROJECT", "hubbard.triangular.metts")
+    project = get(ENV, "PROJECT", "wietek.hubbard.triangular.metts")
     maxf    = parse(Int, get(ENV, "MAXFILES", "0"))
     dry     = get(ENV, "DRYRUN", "0") == "1"
     resume  = get(ENV, "RESUME", "0") == "1"
